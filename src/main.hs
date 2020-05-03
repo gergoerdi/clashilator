@@ -6,13 +6,14 @@ import Data.Maybe (fromMaybe)
 
 import Text.Regex.Applicative
 import Data.Char (isDigit)
+import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
 import System.FilePath
 import System.Directory
 
-data Port = Port T.Text Int
+data Port = Port Text Int
     deriving Show
 
 data FFIType
@@ -31,14 +32,17 @@ ffiType n
   | n <= 64 = FFIU64
   | otherwise = error $ unwords ["ffiType:", show n]
 
-cType :: FFIType -> T.Text
+cType :: FFIType -> Text
 cType FFIBit = "bit"
 cType FFIU8 = "uint8_t"
 cType FFIU16 = "uint16_t"
 cType FFIU32 = "uint32_t"
 cType FFIU64 = "uint64_t"
 
-parsePort :: T.Text -> T.Text -> Port
+cField :: Text -> Text
+cField = id
+
+parsePort :: Text -> Text -> Port
 parsePort name ty = Port name $ fromMaybe (error err) $ match re (T.unpack ty)
   where
     err = unwords ["Invalid port type:", show ty]
@@ -50,13 +54,15 @@ parsePort name ty = Port name $ fromMaybe (error err) $ match re (T.unpack ty)
         | a < b = b - a + 1
         | otherwise = a - b + 1
 
-removeClock :: [Port] -> (Maybe T.Text, [Port])
+removeClock :: [Port] -> (Maybe Text, [Port])
 removeClock (Port clk 1 : ps) = (Just clk, ps)
 removeClock ps = (Nothing, ps)
 
-genInterface :: [Port] -> [Port] -> T.Text
+genInterface :: [Port] -> [Port] -> Text
 genInterface ins outs = T.unlines
-    [ "#include <stdint.h>"
+    [ "#pragma once"
+    , ""
+    , "#include <stdint.h>"
     , ""
     , "typedef int Bit;"
     , ""
@@ -72,9 +78,32 @@ genInterface ins outs = T.unlines
     ]
   where
     fields ports = T.unlines . map ("    " <>) $
-        [ cType (ffiType width) <> " " <> name <> ";"
+        [ cType (ffiType width) <> " " <> cField name <> ";"
         | Port name width <- ports
         ]
+
+genSetInput :: Text -> [Port] -> [Text]
+genSetInput sim ins =
+    [ mconcat [sim, "->", cField name, " = ", "input", "->", cField name, ";"]
+    | Port name _ <- ins
+    ]
+
+genCycle :: Text -> Maybe Text -> [Text]
+genCycle sim clock = case clock of
+    Nothing -> eval
+    Just clock -> tick clock "true" ++ tick clock "false"
+  where
+    eval =
+        [ mconcat [sim, "->", "eval()", ";"]
+        , "main_time++;"
+        ]
+    tick clock phase = (mconcat [sim, "->", clock, " = ", phase, ";"]) : eval
+
+genGetOutput :: Text -> [Port] -> [Text]
+genGetOutput sim outs =
+    [ mconcat ["output", "->", cField name, " = ", sim, "->", cField name]
+    | Port name _ <- outs
+    ]
 
 main :: IO ()
 main = do
