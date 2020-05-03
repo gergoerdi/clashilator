@@ -11,6 +11,8 @@ dependencies:
   - text
   - filepath
   - directory
+  - stache
+  - aeson
 
 source-dirs:
   - src

@@ -1,0 +1,19 @@
+#pragma once
+
+#include <stdint.h>
+
+typedef int Bit;
+
+typedef struct
+{
+{{#inPorts}}
+    {{cType}} {{cName}};
+{{/inPorts}}
+} INPUT;
+
+typedef struct
+{
+{{#outPorts}}
+    {{cType}} {{cName}};
+{{/outPorts}}
+} OUTPUT;

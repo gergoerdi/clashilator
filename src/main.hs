@@ -8,10 +8,13 @@ import Text.Regex.Applicative
 import Data.Char (isDigit)
 import Data.Text (Text)
 import qualified Data.Text as T
-import qualified Data.Text.IO as T
+import qualified Data.Text.Lazy.IO as TIO
+import Data.Aeson
 
 import System.FilePath
 import System.Directory
+
+import Text.Mustache as M
 
 data Port = Port Text Int
     deriving Show
@@ -39,8 +42,8 @@ cType FFIU16 = "uint16_t"
 cType FFIU32 = "uint32_t"
 cType FFIU64 = "uint64_t"
 
-cField :: Text -> Text
-cField = id
+cName :: Text -> Text
+cName = id
 
 parsePort :: Text -> Text -> Port
 parsePort name ty = Port name $ fromMaybe (error err) $ match re (T.unpack ty)
@@ -58,64 +61,33 @@ removeClock :: [Port] -> (Maybe Text, [Port])
 removeClock (Port clk 1 : ps) = (Just clk, ps)
 removeClock ps = (Nothing, ps)
 
-genInterface :: [Port] -> [Port] -> Text
-genInterface ins outs = T.unlines
-    [ "#pragma once"
-    , ""
-    , "#include <stdint.h>"
-    , ""
-    , "typedef int Bit;"
-    , ""
-    , "typedef struct"
-    , "{"
-    , fields ins
-    , "} INPUT;"
-    , ""
-    , "typedef struct"
-    , "{"
-    , fields outs
-    , "} OUTPUT;"
+portValue :: Port -> Value
+portValue (Port name width) = object
+    [ "cName" .= cName name
+    , "cType" .= cType ty
     ]
   where
-    fields ports = T.unlines . map ("    " <>) $
-        [ cType (ffiType width) <> " " <> cField name <> ";"
-        | Port name width <- ports
-        ]
-
-genSetInput :: Text -> [Port] -> [Text]
-genSetInput sim ins =
-    [ mconcat [sim, "->", cField name, " = ", "input", "->", cField name, ";"]
-    | Port name _ <- ins
-    ]
-
-genCycle :: Text -> Maybe Text -> [Text]
-genCycle sim clock = case clock of
-    Nothing -> eval
-    Just clock -> tick clock "true" ++ tick clock "false"
-  where
-    eval =
-        [ mconcat [sim, "->", "eval()", ";"]
-        , "main_time++;"
-        ]
-    tick clock phase = (mconcat [sim, "->", clock, " = ", phase, ";"]) : eval
-
-genGetOutput :: Text -> [Port] -> [Text]
-genGetOutput sim outs =
-    [ mconcat ["output", "->", cField name, " = ", sim, "->", cField name]
-    | Port name _ <- outs
-    ]
+    ty = ffiType width
 
 main :: IO ()
 main = do
+    ifaceTmpl <- compileMustacheFile "template/Interface.h.mustache"
+    implTmpl <- compileMustacheFile "template/Impl.cpp.mustache"
+
     inFile <- return "specimen/topEntity.manifest"
     outDir <- return "specimen/verilator"
     createDirectoryIfMissing True outDir
 
     manifest@Manifest{..} <- read <$> readFile inFile
 
-    -- mapM_ print $ zipWith parsePort portInNames portInTypes
-    -- mapM_ print $ zipWith parsePort portOutNames portOutTypes
     let (clock, ins) = removeClock $ zipWith parsePort portInNames portInTypes
         outs = zipWith parsePort portOutNames portOutTypes
 
-    T.writeFile (outDir </> "API" <.> "h") $ genInterface ins outs
+    let ifaceVals = object
+            [ "inPorts"  .= map portValue ins
+            , "outPorts" .= map portValue outs
+            , "clock"    .= maybe [] (\clock -> [object ["cName" .= cName clock] ]) clock
+            ]
+
+    TIO.writeFile (outDir </> "Interface" <.> "h") $ renderMustache ifaceTmpl ifaceVals
+    TIO.writeFile (outDir </> "Impl" <.> "cpp") $ renderMustache implTmpl ifaceVals
