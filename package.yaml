@@ -1,0 +1,20 @@
+name: clashilator
+version: 0.1.0
+category: hardware
+
+dependencies:
+  - base
+  - clash-prelude
+  - clash-lib
+  - clash-ghc
+  - regex-applicative
+  - text
+  - filepath
+  - directory
+
+source-dirs:
+  - src
+
+executables:
+  clashilator:
+    main: main.hs
