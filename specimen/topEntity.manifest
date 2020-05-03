@@ -1,2 +1,0 @@
-Manifest {manifestHash = (-25960236903259412,Nothing), successFlags = (20,20,False), portInNames = ["CLK_25MHZ","RESET","BTN_UP","BTN_DOWN","BTN_LEFT","BTN_RIGHT"], portInTypes = ["","","","","",""], portOutNames = ["VGA_HSYNC","VGA_VSYNC","VGA_DE","VGA_RED","VGA_GREEN","VGA_BLUE"], portOutTypes = ["","","","[7:0]","[7:0]","[7:0]"], componentNames = ["topEntity"]}
-
