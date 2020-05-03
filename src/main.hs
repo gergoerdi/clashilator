@@ -90,6 +90,23 @@ portInfo tag (Port name width) = object
   where
     ty = ffiType width
 
+manifestInfo :: FilePath -> FilePath -> Manifest -> Value
+manifestInfo manifestPath outputDir Manifest{..} = object
+    [ "inPorts"      .= (markEnds $ map (portInfo "i") ins)
+    , "outPorts"     .= (markEnds $ map (portInfo "o") outs)
+    , "clock"        .= fmap (\clock -> object ["cName" .= cName clock]) clock
+    , "outDir"       .= TL.pack outputDir
+    , "manifestPath" .= TL.pack manifestPath
+    , "srcs"         .= [ object ["verilogPath" .= TL.pack (inputDir </> T.unpack component <.> "v")]
+                        | component <- componentNames
+                        ]
+    ]
+  where
+    (clock, ins) = removeClock $ zipWith parsePort portInNames portInTypes
+    outs = zipWith parsePort portOutNames portOutTypes
+
+    inputDir = takeDirectory manifestPath
+
 markEnds :: [Value] -> [Value]
 markEnds [] = []
 markEnds (v:vs) = markStart v : vs
@@ -97,10 +114,11 @@ markEnds (v:vs) = markStart v : vs
     markStart (Object o) = Object $ o <> H.fromList [ "first" .= True ]
 
 templates =
-    [ ("Interface.h", $(TH.compileMustacheFile "template/Interface.h.mustache"))
-    , ("Impl.cpp", $(TH.compileMustacheFile "template/Impl.cpp.mustache"))
-    , ("Impl.h", $(TH.compileMustacheFile "template/Impl.h.mustache"))
-    , ("VerilatorFFI.hsc", $(TH.compileMustacheFile "template/VerilatorFFI.hsc.mustache"))
+    [ ("generated/Interface.h", $(TH.compileMustacheFile "template/Interface.h.mustache"))
+    , ("generated/Impl.cpp", $(TH.compileMustacheFile "template/Impl.cpp.mustache"))
+    , ("generated/Impl.h", $(TH.compileMustacheFile "template/Impl.h.mustache"))
+    , ("generated/VerilatorFFI.hsc", $(TH.compileMustacheFile "template/VerilatorFFI.hsc.mustache"))
+    , ("Makefile",  $(TH.compileMustacheFile "template/Makefile.mustache"))
     ]
 
 data Options = Options
@@ -134,16 +152,8 @@ main :: IO ()
 main = do
     Options{..} <- execParser optionsInfo
 
-    manifest@Manifest{..} <- read <$> readFile manifestPath
+    manifest <- read <$> readFile manifestPath
 
-    let (clock, ins) = removeClock $ zipWith parsePort portInNames portInTypes
-        outs = zipWith parsePort portOutNames portOutTypes
-
-    let vals = object
-            [ "inPorts"  .= (markEnds $ map (portInfo "i") ins)
-            , "outPorts" .= (markEnds $ map (portInfo "o") outs)
-            , "clock"    .= fmap (\clock -> object ["cName" .= cName clock]) clock
-            ]
-
+    let vals = manifestInfo manifestPath outputDir manifest
     forM_ templates $ \(fname, template) -> do
         writeFileChanged (outputDir </> fname) $ TL.unpack $ renderMustache template vals

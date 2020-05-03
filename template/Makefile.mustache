@@ -1,0 +1,49 @@
+MANIFEST_SRC	= {{manifestPath}}
+VERILOG_SRCS	= {{#srcs}}{{verilogPath}}{{/srcs}}
+
+OUT_ROOT	= {{outDir}}
+
+OUT_DIR		= $(OUT_ROOT)/compiled
+VERILATOR_HDRS	= $(OUT_DIR)/VSim.h
+VERILATOR_LIB	= $(OUT_DIR)/VSim__ALL.a
+VERILATOR_OBJS  = $(OUT_DIR)/verilated.o
+
+GEN_DIR		= $(OUT_ROOT)/generated
+GEN_SRCS	= $(foreach file, Impl.cpp Impl.h Interface.h, $(GEN_DIR)/$(file))
+HSC_SRCS	= $(OUT_DIR)/VerilogFFI.hsc
+
+CPPFLAGS	= $(shell pkg-config --cflags verilator) -I$(OUT_DIR)
+CXXFLAGS	= -fPIC -O3
+VERILATOR_FLAGS	= -CFLAGS '-O3 -fPIC' -Wno-fatal --prefix VSim
+
+all: $(HSC_SRCS) $(OUT_DIR)/libVerilatorFFI.a
+
+clean:
+	rm -rf $(OUT_DIR) $(GEN_DIR)
+
+.PHONY: all clean
+
+$(GEN_SRCS) $(HSC_SRCS): $(MANIFEST_SRC)
+	clashilator -i $< -o {{outDir}}
+
+$(OUT_DIR)/VSim.mk: $(VERILOG_SRCS)
+	verilator $(VERILATOR_FLAGS) --cc -Mdir $(OUT_DIR) $(VERILOG_SRCS)
+
+$(OUT_DIR)/verilated.o: $(shell pkg-config --variable=includedir verilator)/verilated.cpp
+	$(COMPILE.cc) $(OUTPUT_OPTION) $<
+
+$(VERILATOR_LIB) $(VERILATOR_HDRS): $(OUT_DIR)/VSim.mk 
+	cd $(OUT_DIR) && make -f VSim.mk
+
+$(OUT_DIR)/VerilatorFFI.o: $(GEN_SRCS) $(VERILATOR_HDRS)
+	$(COMPILE.cc) $(OUTPUT_OPTION) $<
+
+$(OUT_DIR)/libVerilatorFFI.a: $(OUT_DIR)/VerilatorFFI.o $(VERILATOR_LIB) $(VERILATOR_OBJS)
+	rm -f $@
+	mkdir -p $(OUT_DIR)
+	ar rcsT $@ $^
+
+$(OUT_DIR)/%.o : %.cpp
+	mkdir -p $(OUT_DIR)
+	$(COMPILE.cc) $(OUTPUT_OPTION) $<
+
