@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards, OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 import Clash.Driver.Types
 
@@ -10,11 +11,13 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy.IO as TIO
 import Data.Aeson
+import qualified Data.HashMap.Strict as H
 
 import System.FilePath
 import System.Directory
 
-import Text.Mustache as M
+import Text.Mustache
+import qualified Text.Mustache.Compile.TH as TH
 
 data Port = Port Text Int
     deriving Show
@@ -42,6 +45,13 @@ cType FFIU16 = "uint16_t"
 cType FFIU32 = "uint32_t"
 cType FFIU64 = "uint64_t"
 
+hsType :: FFIType -> Text
+hsType FFIBit = "Bit"
+hsType FFIU8 = "Word8"
+hsType FFIU16 = "Word16"
+hsType FFIU32 = "Word32"
+hsType FFIU64 = "Word64"
+
 cName :: Text -> Text
 cName = id
 
@@ -64,22 +74,29 @@ removeClock :: [Port] -> (Maybe Text, [Port])
 removeClock (Port clk 1 : ps) = (Just clk, ps)
 removeClock ps = (Nothing, ps)
 
-portValue :: Text -> Port -> Value
-portValue tag (Port name width) = object
+portInfo :: Text -> Port -> Value
+portInfo tag (Port name width) = object
     [ "cName" .= cName name
     , "cType" .= cType ty
     , "hsName" .= hsName tag name
+    , "hsType" .= hsType ty
     ]
   where
     ty = ffiType width
 
+markEnds :: [Value] -> [Value]
+markEnds [] = []
+markEnds (v:vs) = markStart v : vs
+  where
+    markStart (Object o) = Object $ o <> H.fromList [ "first" .= True ]
+
+ifaceTmpl  = $(TH.compileMustacheFile "template/Interface.h.mustache")
+implTmpl   = $(TH.compileMustacheFile "template/Impl.cpp.mustache")
+hdrTmpl    = $(TH.compileMustacheFile "template/Impl.h.mustache")
+bridgeTmpl = $(TH.compileMustacheFile "template/VerilatorFFI.hsc.mustache")
+
 main :: IO ()
 main = do
-    ifaceTmpl <- compileMustacheFile "template/Interface.h.mustache"
-    implTmpl <- compileMustacheFile "template/Impl.cpp.mustache"
-    hdrTmpl <- compileMustacheFile "template/Impl.h.mustache"
-    bridgeTmpl <- compileMustacheFile "template/Bridge.hsc.mustache"
-
     inFile <- return "specimen/topEntity.manifest"
     outDir <- return "specimen/verilator"
     createDirectoryIfMissing True outDir
@@ -90,12 +107,12 @@ main = do
         outs = zipWith parsePort portOutNames portOutTypes
 
     let vals = object
-            [ "inPorts"  .= map (portValue "i") ins
-            , "outPorts" .= map (portValue "o") outs
-            , "clock"    .= maybe [] (\clock -> [object ["cName" .= cName clock] ]) clock
+            [ "inPorts"  .= (markEnds $ map (portInfo "i") ins)
+            , "outPorts" .= (markEnds $ map (portInfo "o") outs)
+            , "clock"    .= fmap (\clock -> object ["cName" .= cName clock]) clock
             ]
 
     TIO.writeFile (outDir </> "Interface" <.> "h") $ renderMustache ifaceTmpl vals
     TIO.writeFile (outDir </> "Impl" <.> "cpp") $ renderMustache implTmpl vals
     TIO.writeFile (outDir </> "Impl" <.> "h") $ renderMustache hdrTmpl vals
-    TIO.writeFile (outDir </> "Bridge" <.> "hsc") $ renderMustache bridgeTmpl vals
+    TIO.writeFile (outDir </> "VerilatorFFI" <.> "hsc") $ renderMustache bridgeTmpl vals

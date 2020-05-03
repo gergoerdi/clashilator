@@ -13,6 +13,7 @@ dependencies:
   - directory
   - stache
   - aeson
+  - unordered-containers
 
 source-dirs:
   - src

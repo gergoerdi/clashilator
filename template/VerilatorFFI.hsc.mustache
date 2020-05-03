@@ -1,10 +1,8 @@
 {-# LANGUAGE RecordWildCards, ForeignFunctionInterface #-}
-module {{module}} where
+module VerilatorFFI where
 
 import Prelude
 import Clash.Prelude
-
--- import SimInterface
 
 import Data.Word
 import Data.Int
@@ -12,13 +10,34 @@ import Foreign.Storable
 import Foreign.Ptr
 import Foreign.Marshal.Alloc
 
-#include "Impl.h"
+data INPUT = INPUT {
+{{#inPorts}}
+    {{^first}}, {{/first}}{{hsName}} :: {{hsType}}
+{{/inPorts}}
+    }
+    deriving (Show)
+
+data OUTPUT = OUTPUT{
+{{#outPorts}}
+    {{^first}}, {{/first}}{{hsName}} :: {{hsType}}
+{{/outPorts}}
+    }
+    deriving (Show)
+
+
+#include "Interface.h"
 
 data Sim
 
 foreign import ccall unsafe "vinit" simInit :: IO (Ptr Sim)
 foreign import ccall unsafe "vshutdown" simShutdown :: Ptr Sim -> IO ()
 foreign import ccall unsafe "vstep" simStep :: Ptr Sim -> Ptr INPUT -> Ptr OUTPUT -> IO ()
+
+instance Storable Bit where
+    alignment = alignment . bitToBool
+    sizeOf = sizeOf . bitToBool
+    peek = fmap boolToBit . peek . castPtr
+    poke ptr = poke (castPtr ptr) . bitToBool
 
 instance Storable INPUT where
     alignment _ = #alignment INPUT
