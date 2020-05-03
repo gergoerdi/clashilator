@@ -45,6 +45,9 @@ cType FFIU64 = "uint64_t"
 cName :: Text -> Text
 cName = id
 
+hsName :: Text -> Text -> Text
+hsName tag s = tag <> s
+
 parsePort :: Text -> Text -> Port
 parsePort name ty = Port name $ fromMaybe (error err) $ match re (T.unpack ty)
   where
@@ -61,10 +64,11 @@ removeClock :: [Port] -> (Maybe Text, [Port])
 removeClock (Port clk 1 : ps) = (Just clk, ps)
 removeClock ps = (Nothing, ps)
 
-portValue :: Port -> Value
-portValue (Port name width) = object
+portValue :: Text -> Port -> Value
+portValue tag (Port name width) = object
     [ "cName" .= cName name
     , "cType" .= cType ty
+    , "hsName" .= hsName tag name
     ]
   where
     ty = ffiType width
@@ -73,6 +77,8 @@ main :: IO ()
 main = do
     ifaceTmpl <- compileMustacheFile "template/Interface.h.mustache"
     implTmpl <- compileMustacheFile "template/Impl.cpp.mustache"
+    hdrTmpl <- compileMustacheFile "template/Impl.h.mustache"
+    bridgeTmpl <- compileMustacheFile "template/Bridge.hsc.mustache"
 
     inFile <- return "specimen/topEntity.manifest"
     outDir <- return "specimen/verilator"
@@ -83,11 +89,13 @@ main = do
     let (clock, ins) = removeClock $ zipWith parsePort portInNames portInTypes
         outs = zipWith parsePort portOutNames portOutTypes
 
-    let ifaceVals = object
-            [ "inPorts"  .= map portValue ins
-            , "outPorts" .= map portValue outs
+    let vals = object
+            [ "inPorts"  .= map (portValue "i") ins
+            , "outPorts" .= map (portValue "o") outs
             , "clock"    .= maybe [] (\clock -> [object ["cName" .= cName clock] ]) clock
             ]
 
-    TIO.writeFile (outDir </> "Interface" <.> "h") $ renderMustache ifaceTmpl ifaceVals
-    TIO.writeFile (outDir </> "Impl" <.> "cpp") $ renderMustache implTmpl ifaceVals
+    TIO.writeFile (outDir </> "Interface" <.> "h") $ renderMustache ifaceTmpl vals
+    TIO.writeFile (outDir </> "Impl" <.> "cpp") $ renderMustache implTmpl vals
+    TIO.writeFile (outDir </> "Impl" <.> "h") $ renderMustache hdrTmpl vals
+    TIO.writeFile (outDir </> "Bridge" <.> "hsc") $ renderMustache bridgeTmpl vals

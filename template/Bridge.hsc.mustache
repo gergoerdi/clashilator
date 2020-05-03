@@ -1,0 +1,49 @@
+{-# LANGUAGE RecordWildCards, ForeignFunctionInterface #-}
+module {{module}} where
+
+import Prelude
+import Clash.Prelude
+
+-- import SimInterface
+
+import Data.Word
+import Data.Int
+import Foreign.Storable
+import Foreign.Ptr
+import Foreign.Marshal.Alloc
+
+#include "Impl.h"
+
+data Sim
+
+foreign import ccall unsafe "vinit" simInit :: IO (Ptr Sim)
+foreign import ccall unsafe "vshutdown" simShutdown :: Ptr Sim -> IO ()
+foreign import ccall unsafe "vstep" simStep :: Ptr Sim -> Ptr INPUT -> Ptr OUTPUT -> IO ()
+
+instance Storable INPUT where
+    alignment _ = #alignment INPUT
+    sizeOf _ = #size INPUT
+    {-# INLINE peek #-}
+    peek ptr = const INPUT <$> pure ()
+{{#inPorts}}
+        <*> (#peek INPUT, {{cName}}) ptr
+{{/inPorts}}
+    {-# INLINE poke #-}
+    poke ptr INPUT{..} = do
+{{#inPorts}}
+        (#poke INPUT, {{cName}}) ptr {{hsName}}
+{{/inPorts}}
+
+instance Storable OUTPUT where
+    alignment _ = #alignment OUTPUT
+    sizeOf _ = #size OUTPUT
+    {-# INLINE peek #-}
+    peek ptr = const OUTPUT <$> pure ()
+{{#outPorts}}
+        <*> (#peek OUTPUT, {{cName}}) ptr
+{{/outPorts}}
+    {-# INLINE poke #-}
+    poke ptr OUTPUT{..} = do
+{{#outPorts}}
+        (#poke OUTPUT, {{cName}}) ptr {{hsName}}
+{{/outPorts}}
