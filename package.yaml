@@ -13,6 +13,7 @@ dependencies:
   - aeson
   - unordered-containers
   - optparse-applicative
+  - shake
 
 source-dirs:
   - src

@@ -5,16 +5,18 @@
 import Clash.Driver.Types
 
 import Data.Maybe (fromMaybe)
+import Data.Char (isDigit)
+import Control.Monad (forM_)
 
 import Text.Regex.Applicative
-import Data.Char (isDigit)
 
 import System.FilePath
 import System.Directory
 
 import Data.Text (Text)
 import qualified Data.Text as T
-import qualified Data.Text.Lazy.IO as TIO
+import qualified Data.Text.Lazy as TL
+import Development.Shake (writeFileChanged)
 
 import Text.Mustache
 import qualified Text.Mustache.Compile.TH as TH
@@ -94,15 +96,12 @@ markEnds (v:vs) = markStart v : vs
   where
     markStart (Object o) = Object $ o <> H.fromList [ "first" .= True ]
 
-ifaceTmpl  = $(TH.compileMustacheFile "template/Interface.h.mustache")
-implTmpl   = $(TH.compileMustacheFile "template/Impl.cpp.mustache")
-hdrTmpl    = $(TH.compileMustacheFile "template/Impl.h.mustache")
-bridgeTmpl = $(TH.compileMustacheFile "template/VerilatorFFI.hsc.mustache")
-
--- opts = strOption $
---     long "output" <>
---     short 'o' <>
---     metavar "DIRECTORY"
+templates =
+    [ ("Interface.h", $(TH.compileMustacheFile "template/Interface.h.mustache"))
+    , ("Impl.cpp", $(TH.compileMustacheFile "template/Impl.cpp.mustache"))
+    , ("Impl.h", $(TH.compileMustacheFile "template/Impl.h.mustache"))
+    , ("VerilatorFFI.hsc", $(TH.compileMustacheFile "template/VerilatorFFI.hsc.mustache"))
+    ]
 
 data Options = Options
     { manifestPath :: FilePath
@@ -134,7 +133,6 @@ optionsInfo = info (options <**> helper) $ mconcat
 main :: IO ()
 main = do
     Options{..} <- execParser optionsInfo
-    createDirectoryIfMissing True outputDir
 
     manifest@Manifest{..} <- read <$> readFile manifestPath
 
@@ -147,7 +145,5 @@ main = do
             , "clock"    .= fmap (\clock -> object ["cName" .= cName clock]) clock
             ]
 
-    TIO.writeFile (outputDir </> "Interface" <.> "h") $ renderMustache ifaceTmpl vals
-    TIO.writeFile (outputDir </> "Impl" <.> "cpp") $ renderMustache implTmpl vals
-    TIO.writeFile (outputDir </> "Impl" <.> "h") $ renderMustache hdrTmpl vals
-    TIO.writeFile (outputDir </> "VerilatorFFI" <.> "hsc") $ renderMustache bridgeTmpl vals
+    forM_ templates $ \(fname, template) -> do
+        writeFileChanged (outputDir </> fname) $ TL.unpack $ renderMustache template vals
