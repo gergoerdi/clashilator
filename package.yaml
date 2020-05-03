@@ -4,9 +4,7 @@ category: hardware
 
 dependencies:
   - base
-  - clash-prelude
   - clash-lib
-  - clash-ghc
   - regex-applicative
   - text
   - filepath
@@ -14,6 +12,7 @@ dependencies:
   - stache
   - aeson
   - unordered-containers
+  - optparse-applicative
 
 source-dirs:
   - src

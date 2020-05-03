@@ -1,5 +1,6 @@
 {-# LANGUAGE RecordWildCards, OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ApplicativeDo #-}
 
 import Clash.Driver.Types
 
@@ -7,17 +8,20 @@ import Data.Maybe (fromMaybe)
 
 import Text.Regex.Applicative
 import Data.Char (isDigit)
-import Data.Text (Text)
-import qualified Data.Text as T
-import qualified Data.Text.Lazy.IO as TIO
-import Data.Aeson
-import qualified Data.HashMap.Strict as H
 
 import System.FilePath
 import System.Directory
 
+import Data.Text (Text)
+import qualified Data.Text as T
+import qualified Data.Text.Lazy.IO as TIO
+
 import Text.Mustache
 import qualified Text.Mustache.Compile.TH as TH
+import Data.Aeson hiding (Options)
+import qualified Data.HashMap.Strict as H
+
+import Options.Applicative
 
 data Port = Port Text Int
     deriving Show
@@ -95,13 +99,44 @@ implTmpl   = $(TH.compileMustacheFile "template/Impl.cpp.mustache")
 hdrTmpl    = $(TH.compileMustacheFile "template/Impl.h.mustache")
 bridgeTmpl = $(TH.compileMustacheFile "template/VerilatorFFI.hsc.mustache")
 
+-- opts = strOption $
+--     long "output" <>
+--     short 'o' <>
+--     metavar "DIRECTORY"
+
+data Options = Options
+    { manifestPath :: FilePath
+    , outputDir :: FilePath
+    }
+
+options :: Parser Options
+options = do
+    manifestPath <- strOption $ mconcat
+        [ long "input"
+        , short 'i'
+        , metavar "FILENAME"
+        , help "Clash manifest file"
+        ]
+    outputDir <- strOption $ mconcat
+        [ long "output"
+        , short 'o'
+        , metavar "DIRECTORY"
+        , help "Where to put generated files"
+        ]
+    pure Options{..}
+
+optionsInfo = info (options <**> helper) $ mconcat
+    [ fullDesc
+    , header "Clashilator - Clash <-> Verilator interface"
+    , progDesc "Generate Verilator source files and FFI interface from Clash manifest"
+    ]
+
 main :: IO ()
 main = do
-    inFile <- return "specimen/topEntity.manifest"
-    outDir <- return "specimen/verilator"
-    createDirectoryIfMissing True outDir
+    Options{..} <- execParser optionsInfo
+    createDirectoryIfMissing True outputDir
 
-    manifest@Manifest{..} <- read <$> readFile inFile
+    manifest@Manifest{..} <- read <$> readFile manifestPath
 
     let (clock, ins) = removeClock $ zipWith parsePort portInNames portInTypes
         outs = zipWith parsePort portOutNames portOutTypes
@@ -112,7 +147,7 @@ main = do
             , "clock"    .= fmap (\clock -> object ["cName" .= cName clock]) clock
             ]
 
-    TIO.writeFile (outDir </> "Interface" <.> "h") $ renderMustache ifaceTmpl vals
-    TIO.writeFile (outDir </> "Impl" <.> "cpp") $ renderMustache implTmpl vals
-    TIO.writeFile (outDir </> "Impl" <.> "h") $ renderMustache hdrTmpl vals
-    TIO.writeFile (outDir </> "VerilatorFFI" <.> "hsc") $ renderMustache bridgeTmpl vals
+    TIO.writeFile (outputDir </> "Interface" <.> "h") $ renderMustache ifaceTmpl vals
+    TIO.writeFile (outputDir </> "Impl" <.> "cpp") $ renderMustache implTmpl vals
+    TIO.writeFile (outputDir </> "Impl" <.> "h") $ renderMustache hdrTmpl vals
+    TIO.writeFile (outputDir </> "VerilatorFFI" <.> "hsc") $ renderMustache bridgeTmpl vals
