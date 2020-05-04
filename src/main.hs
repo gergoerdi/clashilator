@@ -114,11 +114,13 @@ markEnds (v:vs) = markStart v : vs
     markStart (Object o) = Object $ o <> H.fromList [ "first" .= True ]
 
 templates =
-    [ ("generated/Interface.h", $(TH.compileMustacheFile "template/Interface.h.mustache"))
-    , ("generated/Impl.cpp", $(TH.compileMustacheFile "template/Impl.cpp.mustache"))
-    , ("generated/Impl.h", $(TH.compileMustacheFile "template/Impl.h.mustache"))
-    , ("generated/VerilatorFFI.hsc", $(TH.compileMustacheFile "template/VerilatorFFI.hsc.mustache"))
-    , ("Makefile",  $(TH.compileMustacheFile "template/Makefile.mustache"))
+    [ ("csrc/Interface.h", $(TH.compileMustacheFile "template/Interface.h.mustache"))
+    , ("csrc/Impl.cpp", $(TH.compileMustacheFile "template/Impl.cpp.mustache"))
+    , ("csrc/Impl.h", $(TH.compileMustacheFile "template/Impl.h.mustache"))
+    , ("csrc/Makefile",  $(TH.compileMustacheFile "template/Makefile.mustache"))
+    , ("Setup.hs",  $(TH.compileMustacheFile "template/Setup.hs.mustache"))
+    , ("src/VerilatorFFI.hsc", $(TH.compileMustacheFile "template/VerilatorFFI.hsc.mustache"))
+    , ("package.yaml",  $(TH.compileMustacheFile "template/package.yaml.mustache"))
     ]
 
 data Options = Options
