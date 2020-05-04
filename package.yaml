@@ -18,15 +18,20 @@ dependencies:
 source-dirs:
   - src
 
+extra-source-files:
+  - template/Makefile.mustache
+  - template/Interface.h.mustache
+  - template/Impl.cpp.mustache
+  - template/Impl.h.mustache
+
+  - template/Setup.hs.mustache
+  - template/package.yaml.mustache
+  - template/VerilatorFFI.hsc.mustache
+
+library:
+  exposed-modules:
+    - Clash.Clashilator
+
 executables:
   clashilator:
     main: main.hs
-    extra-source-files:
-      - template/Makefile.mustache
-      - template/Interface.h.mustache
-      - template/Impl.cpp.mustache
-      - template/Impl.h.mustache
-      
-      - template/Setup.hs.mustache
-      - template/package.yaml.mustache
-      - template/VerilatorFFI.hsc.mustache
