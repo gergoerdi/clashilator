@@ -89,13 +89,12 @@ portInfo tag (Port name width) = object
   where
     ty = ffiType width
 
-manifestInfo :: FilePath -> FilePath -> Manifest -> Value
-manifestInfo inputDir outputDir Manifest{..} = object
+manifestInfo :: FilePath -> Manifest -> Value
+manifestInfo srcDir Manifest{..} = object
     [ "inPorts"      .= (markEnds $ map (portInfo "i") ins)
     , "outPorts"     .= (markEnds $ map (portInfo "o") outs)
     , "clock"        .= fmap (\clock -> object ["cName" .= cName clock]) clock
-    , "outDir"       .= TL.pack outputDir
-    , "srcs"         .= [ object ["verilogPath" .= TL.pack (inputDir </> T.unpack component <.> "v")]
+    , "srcs"         .= [ object ["verilogPath" .= TL.pack (srcDir </> T.unpack component <.> "v")]
                         | component <- componentNames
                         ]
     ]
@@ -110,17 +109,15 @@ markEnds (v:vs) = markStart v : vs
     markStart (Object o) = Object $ o <> H.fromList [ "first" .= True ]
 
 templates =
-    [ ("csrc/Interface.h", $(TH.compileMustacheFile "template/Interface.h.mustache"))
-    , ("csrc/Impl.cpp", $(TH.compileMustacheFile "template/Impl.cpp.mustache"))
-    , ("csrc/Impl.h", $(TH.compileMustacheFile "template/Impl.h.mustache"))
-    , ("csrc/Makefile",  $(TH.compileMustacheFile "template/Makefile.mustache"))
-    , ("Setup.hs",  $(TH.compileMustacheFile "template/Setup.hs.mustache"))
+    [ ("src/Interface.h", $(TH.compileMustacheFile "template/Interface.h.mustache"))
+    , ("src/Impl.cpp", $(TH.compileMustacheFile "template/Impl.cpp.mustache"))
+    , ("src/Impl.h", $(TH.compileMustacheFile "template/Impl.h.mustache"))
+    , ("Makefile",  $(TH.compileMustacheFile "template/Makefile.mustache"))
     , ("src/VerilatorFFI.hsc", $(TH.compileMustacheFile "template/VerilatorFFI.hsc.mustache"))
-    , ("package.yaml",  $(TH.compileMustacheFile "template/package.yaml.mustache"))
     ]
 
 generateFiles :: FilePath -> FilePath -> Manifest -> IO ()
 generateFiles inputDir outputDir manifest = do
-    let vals = manifestInfo inputDir outputDir manifest
+    let vals = manifestInfo inputDir manifest
     forM_ templates $ \(fname, template) -> do
         writeFileChanged (outputDir </> fname) $ TL.unpack $ renderMustache template vals
