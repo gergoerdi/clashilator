@@ -48,10 +48,11 @@ instance Storable INPUT where
         <*> (#peek INPUT, {{cName}}) ptr
 {{/inPorts}}
     {-# INLINE poke #-}
-    poke ptr INPUT{..} = do
+    poke ptr this = do
 {{#inPorts}}
-        (#poke INPUT, {{cName}}) ptr {{hsName}}
+        (#poke INPUT, {{cName}}) ptr ({{hsName}} this)
 {{/inPorts}}
+        return ()
 
 instance Storable OUTPUT where
     alignment _ = #alignment OUTPUT
@@ -62,7 +63,8 @@ instance Storable OUTPUT where
         <*> (#peek OUTPUT, {{cName}}) ptr
 {{/outPorts}}
     {-# INLINE poke #-}
-    poke ptr OUTPUT{..} = do
+    poke ptr this = do
 {{#outPorts}}
-        (#poke OUTPUT, {{cName}}) ptr {{hsName}}
+        (#poke OUTPUT, {{cName}}) ptr ({{hsName}} this)
 {{/outPorts}}
+        return ()
