@@ -20,32 +20,35 @@ import Control.Lens
 import System.FilePath
 import Development.Shake.Command
 
-clashToVerilog :: LocalBuildInfo -> BuildFlags -> IO (FilePath, Manifest)
-clashToVerilog localInfo buildFlags = do
+clashToVerilog :: LocalBuildInfo -> BuildFlags -> [FilePath] -> String -> IO (FilePath, Manifest)
+clashToVerilog localInfo buildFlags srcDirs mod = do
     pkgdbs <- absolutePackageDBPaths $ withPackageDB localInfo
     let dbflags = concat [ ["-package-db", path] | SpecificPackageDB path <- pkgdbs ]
-
-    let mod = "Hello" -- TODO
+        iflags = [ "-i" <> dir | dir <- srcDirs ]
 
     let outDir = buildDir localInfo
         clashDir = "_clash-syn"
 
-    Clash.defaultMain $
-      [ "--verilog"
-      , "-outputdir", outDir </> clashDir
-      , "./src/" <> mod <> ".hs"
-      ] ++ dbflags
+    Clash.defaultMain $ concat
+      [ [ "--verilog"
+        , "-outputdir", outDir </> clashDir
+        , mod
+        ]
+      , iflags
+      , dbflags
+      ]
 
-    let verilogDir = clashDir </> "verilog" </> mod </> "topEntity"
+    let modDir = mod -- TODO: turn '.' into '/' or somesuch
+        verilogDir = clashDir </> "verilog" </> modDir </> "topEntity"
     manifest <- read <$> readFile (outDir </> verilogDir </> "topEntity.manifest")
 
     return (verilogDir, manifest)
 
 -- TODO: Should we also edit `Library` components?
-buildVerilator :: LocalBuildInfo -> BuildFlags -> IO (Executable -> Executable)
-buildVerilator localInfo buildFlags = do
+buildVerilator :: LocalBuildInfo -> BuildFlags -> [FilePath] -> String -> IO (Executable -> Executable)
+buildVerilator localInfo buildFlags srcDir mod = do
     let outDir = buildDir localInfo
-    (verilogDir, manifest) <- clashToVerilog localInfo buildFlags
+    (verilogDir, manifest) <- clashToVerilog localInfo buildFlags srcDir mod
 
     let verilatorDir = "_verilator"
     Clashilator.generateFiles (".." </> verilogDir) (outDir </> verilatorDir) manifest
@@ -80,10 +83,14 @@ buildVerilator localInfo buildFlags = do
 
     return fixupExe
 
-clashilate :: LocalBuildInfo -> BuildFlags -> IO (PackageDescription -> PackageDescription)
-clashilate localInfo buildFlags = do
-    fixupExe <- buildVerilator localInfo buildFlags
+clashilate :: PackageDescription -> LocalBuildInfo -> BuildFlags -> String -> IO PackageDescription
+clashilate pkg localInfo buildFlags mod = do
+    -- TODO: should we really take ALL source dirs?
+    -- Can we put something Clash-specific in the .cabal file instead?
+    let srcDirs = concatMap (view hsSourceDirs) . view executables $ pkg
 
-    return $ foldr (.) id $
+    fixupExe <- buildVerilator localInfo buildFlags srcDirs mod
+
+    return $ foldr ($) pkg $
         [ executables %~ map fixupExe
         ]
