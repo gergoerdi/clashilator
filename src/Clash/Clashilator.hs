@@ -89,14 +89,15 @@ portInfo tag (Port name width) = object
   where
     ty = ffiType width
 
-manifestInfo :: FilePath -> Manifest -> Value
-manifestInfo srcDir Manifest{..} = object
+manifestInfo :: Maybe String -> FilePath -> Manifest -> Value
+manifestInfo cflags srcDir Manifest{..} = object
     [ "inPorts"      .= (markEnds $ map (portInfo "i") ins)
     , "outPorts"     .= (markEnds $ map (portInfo "o") outs)
     , "clock"        .= fmap (\clock -> object ["cName" .= cName clock]) clock
     , "srcs"         .= [ object ["verilogPath" .= TL.pack (srcDir </> T.unpack component <.> "v")]
                         | component <- componentNames
                         ]
+    , "verilator"    .= fmap (\cflags -> object [ "cflags" .= TL.strip (TL.pack cflags) ]) cflags
     ]
   where
     (clock, ins) = removeClock $ zipWith parsePort portInNames portInTypes
@@ -116,8 +117,8 @@ templates =
     , ("src/VerilatorFFI.hsc", $(TH.compileMustacheFile "template/VerilatorFFI.hsc.mustache"))
     ]
 
-generateFiles :: FilePath -> FilePath -> Manifest -> IO ()
-generateFiles inputDir outputDir manifest = do
-    let vals = manifestInfo inputDir manifest
+generateFiles :: Maybe String -> FilePath -> FilePath -> Manifest -> IO ()
+generateFiles cflags inputDir outputDir manifest = do
+    let vals = manifestInfo cflags inputDir manifest
     forM_ templates $ \(fname, template) -> do
         writeFileChanged (outputDir </> fname) $ TL.unpack $ renderMustache template vals

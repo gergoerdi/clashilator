@@ -38,4 +38,4 @@ main = do
     manifest <- read <$> readFile manifestPath
     let inputDir = takeDirectory manifestPath
 
-    generateFiles inputDir outputDir manifest
+    generateFiles Nothing inputDir outputDir manifest

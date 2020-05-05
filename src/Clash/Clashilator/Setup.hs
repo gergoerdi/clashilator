@@ -12,13 +12,14 @@ import Distribution.Simple
 import Distribution.Simple.LocalBuildInfo
 import Distribution.Simple.Setup
 import Distribution.Simple.Compiler
+import Distribution.Simple.Program
+import Distribution.Verbosity
 import Distribution.ModuleName (fromString)
 
 import Distribution.Types.Lens
 import Control.Lens
 
 import System.FilePath
-import Development.Shake.Command
 
 clashToVerilog :: LocalBuildInfo -> BuildFlags -> [FilePath] -> String -> IO (FilePath, Manifest)
 clashToVerilog localInfo buildFlags srcDirs mod = do
@@ -47,14 +48,22 @@ clashToVerilog localInfo buildFlags srcDirs mod = do
 -- TODO: Should we also edit `Library` components?
 buildVerilator :: LocalBuildInfo -> BuildFlags -> [FilePath] -> String -> IO (Executable -> Executable)
 buildVerilator localInfo buildFlags srcDir mod = do
+    let verbosity = fromFlagOrDefault normal (buildVerbosity buildFlags)
+    cflags <- do
+        mpkgConfig <- needProgram verbosity pkgConfigProgram (withPrograms localInfo)
+        case mpkgConfig of
+            Nothing -> error "Cannot find pkg-config program"
+            Just (pkgConfig, _) -> getProgramOutput verbosity pkgConfig ["--cflags", "verilator"]
+
     let outDir = buildDir localInfo
     (verilogDir, manifest) <- clashToVerilog localInfo buildFlags srcDir mod
 
     let verilatorDir = "_verilator"
-    Clashilator.generateFiles (".." </> verilogDir) (outDir </> verilatorDir) manifest
+    Clashilator.generateFiles (Just cflags) (".." </> verilogDir) (outDir </> verilatorDir) manifest
 
-    -- TODO: bake in `pkg-config --cflags verilator`
-    () <- cmd (Cwd (outDir </> verilatorDir)) "make"
+    -- TODO: get `make` location from configuration
+    _ <- getProgramInvocationOutput verbosity $
+         simpleProgramInvocation "make" ["-C", outDir </> verilatorDir]
 
     let incDir = outDir </> verilatorDir </> "src"
         libDir = outDir </> verilatorDir </> "obj"

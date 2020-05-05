@@ -8,7 +8,13 @@ VERILATOR_OBJS  = $(OUT_DIR)/verilated.o
 SRC_DIR         = src
 SRCS	        = $(foreach file, Impl.cpp Impl.h Interface.h, $(SRC_DIR)/$(file))
 
-CPPFLAGS	= $(shell pkg-config --cflags verilator) -I$(OUT_DIR)
+{{#verilator}}
+CPPFLAGS	= {{cflags}}
+{{/verilator}}
+{{^verilator}}
+CPPFLAGS	= $(shell pkg-config --cflags verilator)
+{{/verilator}}
+CPPFLAGS	+= -I$(OUT_DIR)
 CXXFLAGS	= -fPIC -O3
 VERILATOR_FLAGS	= -CFLAGS '-O3 -fPIC' -Wno-fatal --prefix VSim
 
