@@ -1,6 +1,12 @@
 name: clashilator
 version: 0.1.0
-category: hardware
+category: Hardware, Development
+synopsis: Automated Clash to Verilator bridge
+description:
+  Code generator and Setup.hs hooks to generate a Verilator simulation
+  and access it from Clash
+maintainer: Gergo Erdi <gergo@erdi.hu>
+github: gergoerdi/clashilator
 
 dependencies:
   - base
