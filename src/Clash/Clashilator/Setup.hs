@@ -15,24 +15,23 @@ import Distribution.Simple.Compiler
 import Distribution.Simple.Program
 import Distribution.Verbosity
 import Distribution.ModuleName (fromString)
+import Distribution.Types.UnqualComponentName
 
 import Distribution.Types.Lens
 import Control.Lens
+import Control.Monad (forM)
 
 import System.FilePath
 
-clashToVerilog :: LocalBuildInfo -> BuildFlags -> [FilePath] -> String -> IO (FilePath, Manifest)
-clashToVerilog localInfo buildFlags srcDirs mod = do
+clashToVerilog :: LocalBuildInfo -> BuildFlags -> [FilePath] -> String -> FilePath -> IO (FilePath, Manifest)
+clashToVerilog localInfo buildFlags srcDirs mod outDir = do
     pkgdbs <- absolutePackageDBPaths $ withPackageDB localInfo
     let dbflags = concat [ ["-package-db", path] | SpecificPackageDB path <- pkgdbs ]
         iflags = [ "-i" <> dir | dir <- srcDirs ]
 
-    let outDir = buildDir localInfo
-        clashDir = "_clash-syn"
-
     Clash.defaultMain $ concat
       [ [ "--verilog"
-        , "-outputdir", outDir </> clashDir
+        , "-outputdir", outDir
         , mod
         ]
       , iflags
@@ -40,33 +39,36 @@ clashToVerilog localInfo buildFlags srcDirs mod = do
       ]
 
     let modDir = mod -- TODO: turn '.' into '/' or somesuch
-        verilogDir = clashDir </> "verilog" </> modDir </> "topEntity"
-    manifest <- read <$> readFile (outDir </> verilogDir </> "topEntity.manifest")
+        verilogDir = outDir </> "verilog" </> modDir </> "topEntity"
+    manifest <- read <$> readFile (verilogDir </> "topEntity.manifest")
 
     return (verilogDir, manifest)
 
--- TODO: Should we also edit `Library` components?
-buildVerilator :: LocalBuildInfo -> BuildFlags -> [FilePath] -> String -> IO (Executable -> Executable)
-buildVerilator localInfo buildFlags srcDir mod = do
-    let verbosity = fromFlagOrDefault normal (buildVerbosity buildFlags)
+buildVerilator :: LocalBuildInfo -> BuildFlags -> Maybe UnqualComponentName -> BuildInfo -> IO BuildInfo
+buildVerilator localInfo buildFlags compName buildInfo = case top of
+    Nothing -> return buildInfo
+    Just topEntityModule -> buildVerilator' localInfo buildFlags compName buildInfo topEntityModule
+  where
+    top = lookup "x-clashilator-top" $ view customFieldsBI buildInfo
+
+buildVerilator' :: LocalBuildInfo -> BuildFlags -> Maybe UnqualComponentName -> BuildInfo -> String -> IO BuildInfo
+buildVerilator' localInfo buildFlags compName buildInfo topEntityModule = do
     cflags <- do
         mpkgConfig <- needProgram verbosity pkgConfigProgram (withPrograms localInfo)
         case mpkgConfig of
             Nothing -> error "Cannot find pkg-config program"
             Just (pkgConfig, _) -> getProgramOutput verbosity pkgConfig ["--cflags", "verilator"]
 
-    let outDir = buildDir localInfo
-    (verilogDir, manifest) <- clashToVerilog localInfo buildFlags srcDir mod
+    (verilogDir, manifest) <- clashToVerilog localInfo buildFlags srcDirs topEntityModule synDir
 
-    let verilatorDir = "_verilator"
-    Clashilator.generateFiles (Just cflags) (".." </> verilogDir) (outDir </> verilatorDir) manifest
+    Clashilator.generateFiles (Just cflags) verilogDir verilatorDir manifest
 
     -- TODO: get `make` location from configuration
     _ <- getProgramInvocationOutput verbosity $
-         simpleProgramInvocation "make" ["-C", outDir </> verilatorDir]
+         simpleProgramInvocation "make" ["-f", verilatorDir </> "Makefile"]
 
-    let incDir = outDir </> verilatorDir </> "src"
-        libDir = outDir </> verilatorDir </> "obj"
+    let incDir = verilatorDir </> "src"
+        libDir = verilatorDir </> "obj"
         lib = "VerilatorFFI"
 
     let fixupOptions f (PerCompilerFlavor x y) = PerCompilerFlavor (f x) (f y)
@@ -81,25 +83,30 @@ buildVerilator localInfo buildFlags srcDir mod = do
             , "-optl-Wl,--no-whole-archive"
             ]
 
-        fixupExe = foldr (.) id $
-            [ includeDirs %~ (incDir:)
-            , extraLibDirs %~ (libDir:)
-            , options %~ fixupOptions (linkFlags++)
+    return $ foldr ($) buildInfo $
+      [ includeDirs %~ (incDir:)
+      , extraLibDirs %~ (libDir:)
+      , options %~ fixupOptions (linkFlags++)
 
-            , hsSourceDirs %~ (incDir:)
-            , otherModules %~ (fromString lib:)
-            ]
+      , hsSourceDirs %~ (incDir:)
+      , otherModules %~ (fromString lib:)
+      ]
+  where
+    verbosity = fromFlagOrDefault normal (buildVerbosity buildFlags)
 
-    return fixupExe
+    srcDirs = view hsSourceDirs buildInfo -- TODO: x-clashilator-source-dirs
+    outDir = case compName of
+        Nothing -> buildDir localInfo
+        Just name -> buildDir localInfo </> unUnqualComponentName name
+    verilatorDir = outDir </> "_clashilator" </> "verilator"
+    synDir = outDir </> "_clashilator" </> "clash-syn"
 
-clashilate :: PackageDescription -> LocalBuildInfo -> BuildFlags -> String -> IO PackageDescription
-clashilate pkg localInfo buildFlags mod = do
-    -- TODO: should we really take ALL source dirs?
-    -- Can we put something Clash-specific in the .cabal file instead?
-    let srcDirs = concatMap (view hsSourceDirs) . view executables $ pkg
+clashilate :: PackageDescription -> LocalBuildInfo -> BuildFlags -> IO PackageDescription
+clashilate pkg localInfo buildFlags = do
+    -- TODO: there must be a Control.Lens-y way to do this more succintly...
+    let exes = view executables pkg
+    exes' <- forM exes $ \exe -> do
+        buildInfo' <- buildVerilator localInfo buildFlags (Just $ view exeName exe) (view buildInfo exe)
+        return $ exe & buildInfo .~ buildInfo'
 
-    fixupExe <- buildVerilator localInfo buildFlags srcDirs mod
-
-    return $ foldr ($) pkg $
-        [ executables %~ map fixupExe
-        ]
+    return $ pkg & executables .~ exes'

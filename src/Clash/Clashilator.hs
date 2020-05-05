@@ -89,8 +89,8 @@ portInfo tag (Port name width) = object
   where
     ty = ffiType width
 
-manifestInfo :: Maybe String -> FilePath -> Manifest -> Value
-manifestInfo cflags srcDir Manifest{..} = object
+manifestInfo :: Maybe String -> FilePath -> FilePath -> Manifest -> Value
+manifestInfo cflags srcDir outputDir Manifest{..} = object
     [ "inPorts"      .= (markEnds $ map (portInfo "i") ins)
     , "outPorts"     .= (markEnds $ map (portInfo "o") outs)
     , "clock"        .= fmap (\clock -> object ["cName" .= cName clock]) clock
@@ -98,6 +98,7 @@ manifestInfo cflags srcDir Manifest{..} = object
                         | component <- componentNames
                         ]
     , "verilator"    .= fmap (\cflags -> object [ "cflags" .= TL.strip (TL.pack cflags) ]) cflags
+    , "outputDir"    .= outputDir
     ]
   where
     (clock, ins) = removeClock $ zipWith parsePort portInNames portInTypes
@@ -119,6 +120,6 @@ templates =
 
 generateFiles :: Maybe String -> FilePath -> FilePath -> Manifest -> IO ()
 generateFiles cflags inputDir outputDir manifest = do
-    let vals = manifestInfo cflags inputDir manifest
+    let vals = manifestInfo cflags inputDir outputDir manifest
     forM_ templates $ \(fname, template) -> do
         writeFileChanged (outputDir </> fname) $ TL.unpack $ renderMustache template vals

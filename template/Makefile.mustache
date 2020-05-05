@@ -1,11 +1,11 @@
 VERILOG_SRCS	= {{#srcs}}{{verilogPath}}{{/srcs}}
 
-OUT_DIR		= obj
+OUT_DIR		= {{outputDir}}/obj
 VERILATOR_HDRS	= $(OUT_DIR)/VSim.h
 VERILATOR_LIB	= $(OUT_DIR)/VSim__ALL.a
 VERILATOR_OBJS  = $(OUT_DIR)/verilated.o
 
-SRC_DIR         = src
+SRC_DIR         = {{outputDir}}/src
 SRCS	        = $(foreach file, Impl.cpp Impl.h Interface.h, $(SRC_DIR)/$(file))
 
 {{#verilator}}
