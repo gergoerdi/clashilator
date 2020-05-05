@@ -5,7 +5,7 @@ synopsis: Automated Clash to Verilator bridge
 description:
   Code generator and Setup.hs hooks to generate a Verilator simulation
   and access it from Clash
-maintainer: Gergo Erdi <gergo@erdi.hu>
+maintainer: Gergő Érdi <gergo@erdi.hu>
 github: gergoerdi/clashilator
 
 dependencies:
