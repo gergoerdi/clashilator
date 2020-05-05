@@ -4,7 +4,11 @@ category: hardware
 
 dependencies:
   - base
+  - Cabal
+  - lens
+
   - clash-lib
+  - clash-ghc
   - regex-applicative
   - text
   - filepath
@@ -28,6 +32,7 @@ extra-source-files:
 library:
   exposed-modules:
     - Clash.Clashilator
+    - Clash.Clashilator.Setup
 
 executables:
   clashilator:
