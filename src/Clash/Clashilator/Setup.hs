@@ -119,10 +119,13 @@ clashilatables =
     , Clashilatable (benchmarks . each)  (Just . view benchmarkName)
     ]
 
+itagged :: Traversal' s a -> (a -> b) -> IndexedTraversal' b s a
+itagged l f = reindexed f (l . selfIndex)
+
 clashilate :: PackageDescription -> LocalBuildInfo -> BuildFlags -> IO PackageDescription
 clashilate pkg localInfo buildFlags =
     foldM (&) pkg $
-      [ \pkg -> pkg & trav %%~ \c ->
-         c & buildInfo %%~ buildVerilator localInfo buildFlags (nameOf c)
-      | Clashilatable trav nameOf <- clashilatables
+      [ itraverseOf focus $ buildVerilator localInfo buildFlags
+      | Clashilatable component getName <- clashilatables
+      , let focus = itagged component getName <. buildInfo
       ]
