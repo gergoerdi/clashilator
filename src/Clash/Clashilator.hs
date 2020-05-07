@@ -75,9 +75,9 @@ parsePort name ty = Port name $ fromMaybe (error err) $ match re (T.unpack ty)
         | a < b = b - a + 1
         | otherwise = a - b + 1
 
-removeClock :: [Port] -> (Maybe Text, [Port])
-removeClock (Port clk 1 : ps) = (Just clk, ps)
-removeClock ps = (Nothing, ps)
+getClock :: Maybe Text -> [Port] -> (Maybe Text, [Port])
+getClock (Just clk) (Port name 1 : ps) | name == clk = (Just name, ps)
+getClock _ ps = (Nothing, ps)
 
 portInfo :: Text -> Port -> Value
 portInfo tag (Port name width) = object
@@ -89,8 +89,8 @@ portInfo tag (Port name width) = object
   where
     ty = ffiType width
 
-manifestInfo :: Maybe String -> FilePath -> FilePath -> Manifest -> Value
-manifestInfo cflags srcDir outputDir Manifest{..} = object
+manifestInfo :: Maybe String -> FilePath -> FilePath -> Maybe Text -> Manifest -> Value
+manifestInfo cflags srcDir outputDir clkName Manifest{..} = object
     [ "inPorts"      .= (markEnds $ map (portInfo "i") ins)
     , "outPorts"     .= (markEnds $ map (portInfo "o") outs)
     , "clock"        .= fmap (\clock -> object ["cName" .= cName clock]) clock
@@ -101,7 +101,7 @@ manifestInfo cflags srcDir outputDir Manifest{..} = object
     , "outputDir"    .= outputDir
     ]
   where
-    (clock, ins) = removeClock $ zipWith parsePort portInNames portInTypes
+    (clock, ins) = getClock clkName $ zipWith parsePort portInNames portInTypes
     outs = zipWith parsePort portOutNames portOutTypes
 
 markEnds :: [Value] -> [Value]
@@ -118,8 +118,8 @@ templates =
     , ("src/VerilatorFFI.hsc", $(TH.compileMustacheFile "template/VerilatorFFI.hsc.mustache"))
     ]
 
-generateFiles :: Maybe String -> FilePath -> FilePath -> Manifest -> IO ()
-generateFiles cflags inputDir outputDir manifest = do
-    let vals = manifestInfo cflags inputDir outputDir manifest
+generateFiles :: Maybe String -> FilePath -> FilePath -> Maybe Text -> Manifest -> IO ()
+generateFiles cflags inputDir outputDir clkName manifest = do
+    let vals = manifestInfo cflags inputDir outputDir clkName manifest
     forM_ templates $ \(fname, template) -> do
         writeFileChanged (outputDir </> fname) $ TL.unpack $ renderMustache template vals

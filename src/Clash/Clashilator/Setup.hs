@@ -20,7 +20,7 @@ import Distribution.Types.UnqualComponentName
 import Distribution.Types.Lens
 import Control.Lens
 import Control.Monad (forM)
-
+import Data.String (fromString)
 import System.FilePath
 
 clashToVerilog :: LocalBuildInfo -> BuildFlags -> [FilePath] -> String -> FilePath -> IO (FilePath, Manifest)
@@ -49,7 +49,7 @@ buildVerilator localInfo buildFlags compName buildInfo = case top of
     Nothing -> return buildInfo
     Just topEntityModule -> buildVerilator' localInfo buildFlags compName buildInfo topEntityModule
   where
-    top = lookup "x-clashilator-top" $ view customFieldsBI buildInfo
+    top = lookup "x-clashilator-top-is" $ view customFieldsBI buildInfo
 
 buildVerilator' :: LocalBuildInfo -> BuildFlags -> Maybe UnqualComponentName -> BuildInfo -> String -> IO BuildInfo
 buildVerilator' localInfo buildFlags compName buildInfo topEntityModule = do
@@ -59,9 +59,9 @@ buildVerilator' localInfo buildFlags compName buildInfo topEntityModule = do
             Nothing -> error "Cannot find pkg-config program"
             Just (pkgConfig, _) -> getProgramOutput verbosity pkgConfig ["--cflags", "verilator"]
 
+    -- TODO: dependency tracking
     (verilogDir, manifest) <- clashToVerilog localInfo buildFlags srcDirs topEntityModule synDir
-
-    Clashilator.generateFiles (Just cflags) verilogDir verilatorDir manifest
+    Clashilator.generateFiles (Just cflags) verilogDir verilatorDir (fromString <$> clk) manifest
 
     -- TODO: get `make` location from configuration
     _ <- getProgramInvocationOutput verbosity $
@@ -94,7 +94,10 @@ buildVerilator' localInfo buildFlags compName buildInfo topEntityModule = do
   where
     verbosity = fromFlagOrDefault normal (buildVerbosity buildFlags)
 
-    srcDirs = view hsSourceDirs buildInfo -- TODO: x-clashilator-source-dirs
+    clk = lookup "x-clashilator-clock" $ view customFieldsBI buildInfo
+
+    -- TODO: Maybe we could add extra source dirs from "x-clashilator-source-dirs"?
+    srcDirs = view hsSourceDirs buildInfo
     outDir = case compName of
         Nothing -> buildDir localInfo
         Just name -> buildDir localInfo </> unUnqualComponentName name

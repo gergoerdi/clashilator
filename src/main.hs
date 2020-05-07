@@ -3,10 +3,12 @@
 import Clash.Clashilator
 import System.FilePath
 import Options.Applicative
+import Data.String (fromString)
 
 data Options = Options
     { manifestPath :: FilePath
     , outputDir :: FilePath
+    , clkName :: Maybe String
     }
 
 options :: Parser Options
@@ -23,6 +25,12 @@ options = do
         , metavar "DIRECTORY"
         , help "Where to put generated files"
         ]
+    clkName <- optional $ strOption $ mconcat
+        [ long "clock"
+        , short 'c'
+        , metavar "NAME"
+        , help "Clock signal name"
+        ]
     pure Options{..}
 
 optionsInfo = info (options <**> helper) $ mconcat
@@ -38,4 +46,4 @@ main = do
     manifest <- read <$> readFile manifestPath
     let inputDir = takeDirectory manifestPath
 
-    generateFiles Nothing inputDir outputDir manifest
+    generateFiles Nothing inputDir outputDir (fromString <$> clkName) manifest
