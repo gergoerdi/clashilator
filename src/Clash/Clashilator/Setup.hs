@@ -22,6 +22,7 @@ import Control.Lens
 import Control.Monad (forM)
 import Data.String (fromString)
 import System.FilePath
+import Data.List.Split
 
 clashToVerilog :: LocalBuildInfo -> BuildFlags -> [FilePath] -> String -> FilePath -> IO (FilePath, Manifest)
 clashToVerilog localInfo buildFlags srcDirs mod outDir = do
@@ -38,7 +39,7 @@ clashToVerilog localInfo buildFlags srcDirs mod outDir = do
       , dbflags
       ]
 
-    let modDir = mod -- TODO: turn '.' into '/' or somesuch
+    let (modDir:_) = splitWhen (== '.') mod
         verilogDir = outDir </> "verilog" </> modDir </> "topEntity"
     manifest <- read <$> readFile (verilogDir </> "topEntity.manifest")
 
