@@ -84,14 +84,12 @@ buildVerilator' localInfo buildFlags compName buildInfo topEntityModule = do
             , "-optl-Wl,--no-whole-archive"
             ]
 
-    return $ foldr ($) buildInfo $
-      [ includeDirs %~ (incDir:)
-      , extraLibDirs %~ (libDir:)
-      , options %~ fixupOptions (linkFlags++)
-
-      , hsSourceDirs %~ (incDir:)
-      , otherModules %~ (fromString lib:)
-      ]
+    return $ buildInfo
+      & includeDirs %~ (incDir:)
+      & extraLibDirs %~ (libDir:)
+      & options %~ fixupOptions (linkFlags++)
+      & hsSourceDirs %~ (incDir:)
+      & otherModules %~ (fromString lib:)
   where
     verbosity = fromFlagOrDefault normal (buildVerbosity buildFlags)
 
@@ -107,10 +105,9 @@ buildVerilator' localInfo buildFlags compName buildInfo topEntityModule = do
 
 clashilate :: PackageDescription -> LocalBuildInfo -> BuildFlags -> IO PackageDescription
 clashilate pkg localInfo buildFlags = do
-    -- TODO: there must be a Control.Lens-y way to do this more succintly...
-    let exes = view executables pkg
-    exes' <- forM exes $ \exe -> do
-        buildInfo' <- buildVerilator localInfo buildFlags (Just $ view exeName exe) (view buildInfo exe)
-        return $ exe & buildInfo .~ buildInfo'
+    pkg <- forOf (executables . each) pkg $ \exe ->
+      forOf buildInfo exe $ buildVerilator localInfo buildFlags (Just $ view exeName exe)
+    pkg <- forOf (library . each) pkg $ \lib ->
+      forOf buildInfo lib $ buildVerilator localInfo buildFlags Nothing
 
-    return $ pkg & executables .~ exes'
+    return pkg
