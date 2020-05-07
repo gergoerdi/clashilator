@@ -93,7 +93,7 @@ buildVerilator' localInfo buildFlags compName buildInfo topEntityModule = do
       & extraLibDirs %~ (libDir:)
       & options %~ fixupOptions (linkFlags++)
       & hsSourceDirs %~ (incDir:)
-      & otherModules %~ (fromString lib:)
+      & otherModules %~ (fromComponents ["Clash", "Clashilator", "FFI"]:)
   where
     verbosity = fromFlagOrDefault normal (buildVerbosity buildFlags)
 

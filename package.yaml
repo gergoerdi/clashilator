@@ -33,7 +33,7 @@ extra-source-files:
   - template/Interface.h.mustache
   - template/Impl.cpp.mustache
   - template/Impl.h.mustache
-  - template/VerilatorFFI.hsc.mustache
+  - template/FFI.hsc.mustache
 
 library:
   exposed-modules:

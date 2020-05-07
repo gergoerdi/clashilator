@@ -115,7 +115,7 @@ templates =
     , ("src/Impl.cpp", $(TH.compileMustacheFile "template/Impl.cpp.mustache"))
     , ("src/Impl.h", $(TH.compileMustacheFile "template/Impl.h.mustache"))
     , ("Makefile",  $(TH.compileMustacheFile "template/Makefile.mustache"))
-    , ("src/VerilatorFFI.hsc", $(TH.compileMustacheFile "template/VerilatorFFI.hsc.mustache"))
+    , ("src/Clash/Clashilator/FFI.hsc", $(TH.compileMustacheFile "template/FFI.hsc.mustache"))
     ]
 
 generateFiles :: Maybe String -> FilePath -> FilePath -> Maybe Text -> Manifest -> IO ()
