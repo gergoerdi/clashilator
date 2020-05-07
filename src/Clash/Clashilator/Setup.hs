@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs, RankNTypes, FlexibleContexts #-}
 module Clash.Clashilator.Setup
     ( clashToVerilog
     , buildVerilator
@@ -19,7 +20,7 @@ import Distribution.Types.UnqualComponentName
 
 import Distribution.Types.Lens
 import Control.Lens hiding ((<.>))
-import Control.Monad (forM)
+import Control.Monad (forM, foldM)
 import Data.String (fromString)
 import Data.List (intercalate)
 import System.FilePath
@@ -103,11 +104,25 @@ buildVerilator' localInfo buildFlags compName buildInfo topEntityModule = do
     verilatorDir = outDir </> "_clashilator" </> "verilator"
     synDir = outDir </> "_clashilator" </> "clash-syn"
 
-clashilate :: PackageDescription -> LocalBuildInfo -> BuildFlags -> IO PackageDescription
-clashilate pkg localInfo buildFlags = do
-    pkg <- forOf (executables . each) pkg $ \exe ->
-      forOf buildInfo exe $ buildVerilator localInfo buildFlags (Just $ view exeName exe)
-    pkg <- forOf (library . each) pkg $ \lib ->
-      forOf buildInfo lib $ buildVerilator localInfo buildFlags Nothing
+data Clashilatable where
+    Clashilatable
+        :: (HasBuildInfo a)
+        => Traversal' PackageDescription a
+        -> (a -> Maybe UnqualComponentName)
+        -> Clashilatable
 
-    return pkg
+clashilatables :: [Clashilatable]
+clashilatables =
+    [ Clashilatable (executables . each) (Just . view exeName)
+    , Clashilatable (library . each)     (const Nothing)
+    , Clashilatable (testSuites . each)  (Just . view testName)
+    , Clashilatable (benchmarks . each)  (Just . view benchmarkName)
+    ]
+
+clashilate :: PackageDescription -> LocalBuildInfo -> BuildFlags -> IO PackageDescription
+clashilate pkg localInfo buildFlags =
+    foldM (&) pkg $
+      [ \pkg -> pkg & trav %%~ \c ->
+         c & buildInfo %%~ buildVerilator localInfo buildFlags (nameOf c)
+      | Clashilatable trav nameOf <- clashilatables
+      ]
