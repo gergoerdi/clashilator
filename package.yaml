@@ -24,7 +24,6 @@ dependencies:
   - unordered-containers
   - optparse-applicative
   - shake
-  - split
 
 source-dirs:
   - src

@@ -14,17 +14,17 @@ import Distribution.Simple.Setup
 import Distribution.Simple.Compiler
 import Distribution.Simple.Program
 import Distribution.Verbosity
-import Distribution.ModuleName (fromString)
+import Distribution.ModuleName
 import Distribution.Types.UnqualComponentName
 
 import Distribution.Types.Lens
-import Control.Lens
+import Control.Lens hiding ((<.>))
 import Control.Monad (forM)
 import Data.String (fromString)
+import Data.List (intercalate)
 import System.FilePath
-import Data.List.Split
 
-clashToVerilog :: LocalBuildInfo -> BuildFlags -> [FilePath] -> String -> FilePath -> IO (FilePath, Manifest)
+clashToVerilog :: LocalBuildInfo -> BuildFlags -> [FilePath] -> ModuleName -> FilePath -> IO (FilePath, Manifest)
 clashToVerilog localInfo buildFlags srcDirs mod outDir = do
     pkgdbs <- absolutePackageDBPaths $ withPackageDB localInfo
     let dbflags = concat [ ["-package-db", path] | SpecificPackageDB path <- pkgdbs ]
@@ -33,13 +33,13 @@ clashToVerilog localInfo buildFlags srcDirs mod outDir = do
     Clash.defaultMain $ concat
       [ [ "--verilog"
         , "-outputdir", outDir
-        , mod
+        , intercalate "." (components mod)
         ]
       , iflags
       , dbflags
       ]
 
-    let (modDir:_) = splitWhen (== '.') mod
+    let (modDir:_) = components mod
         verilogDir = outDir </> "verilog" </> modDir </> "topEntity"
     manifest <- read <$> readFile (verilogDir </> "topEntity.manifest")
 
@@ -48,11 +48,11 @@ clashToVerilog localInfo buildFlags srcDirs mod outDir = do
 buildVerilator :: LocalBuildInfo -> BuildFlags -> Maybe UnqualComponentName -> BuildInfo -> IO BuildInfo
 buildVerilator localInfo buildFlags compName buildInfo = case top of
     Nothing -> return buildInfo
-    Just topEntityModule -> buildVerilator' localInfo buildFlags compName buildInfo topEntityModule
+    Just topEntityModule -> buildVerilator' localInfo buildFlags compName buildInfo (fromString topEntityModule)
   where
     top = lookup "x-clashilator-top-is" $ view customFieldsBI buildInfo
 
-buildVerilator' :: LocalBuildInfo -> BuildFlags -> Maybe UnqualComponentName -> BuildInfo -> String -> IO BuildInfo
+buildVerilator' :: LocalBuildInfo -> BuildFlags -> Maybe UnqualComponentName -> BuildInfo -> ModuleName -> IO BuildInfo
 buildVerilator' localInfo buildFlags compName buildInfo topEntityModule = do
     cflags <- do
         mpkgConfig <- needProgram verbosity pkgConfigProgram (withPrograms localInfo)
