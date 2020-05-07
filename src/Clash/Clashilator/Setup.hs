@@ -3,6 +3,9 @@ module Clash.Clashilator.Setup
     ( clashToVerilog
     , buildVerilator
     , clashilate
+
+    , clashilatorMain
+    , clashilatorBuildHook
     ) where
 
 import qualified Clash.Main as Clash
@@ -129,3 +132,13 @@ clashilate pkg localInfo buildFlags =
       | Clashilatable component getName <- clashilatables
       , let focus = itagged component getName <. buildInfo
       ]
+
+clashilatorMain :: IO ()
+clashilatorMain = defaultMainWithHooks simpleUserHooks
+    { buildHook = clashilatorBuildHook
+    }
+
+clashilatorBuildHook :: PackageDescription -> LocalBuildInfo -> UserHooks -> BuildFlags -> IO ()
+clashilatorBuildHook pkg localInfo userHooks buildFlags = do
+    pkg' <- clashilate pkg localInfo buildFlags
+    buildHook simpleUserHooks pkg' localInfo userHooks buildFlags
