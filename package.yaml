@@ -7,6 +7,7 @@ description:
   and access it from Clash
 maintainer: Gergő Érdi <gergo@erdi.hu>
 github: gergoerdi/clashilator
+license-file: LICENSE
 
 dependencies:
   - base
@@ -29,6 +30,8 @@ source-dirs:
   - src
 
 extra-source-files:
+  - README.md
+  
   - template/Makefile.mustache
   - template/Interface.h.mustache
   - template/Impl.cpp.mustache
