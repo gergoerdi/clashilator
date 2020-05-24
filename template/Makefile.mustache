@@ -16,7 +16,7 @@ CPPFLAGS	= $(shell pkg-config --cflags verilator)
 {{/verilator}}
 CPPFLAGS	+= -I$(OUT_DIR)
 CXXFLAGS	= -fPIC -O3
-VERILATOR_FLAGS	= -CFLAGS '-O3 -fPIC' -Wno-fatal --prefix VSim
+VERILATOR_FLAGS	= -CFLAGS '-O3 -fPIC' -Wno-fatal --prefix VSim +1364-2001ext+v
 
 all: $(OUT_DIR)/libVerilatorFFI.a
 
