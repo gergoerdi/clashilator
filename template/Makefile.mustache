@@ -32,8 +32,8 @@ $(OUT_DIR)/verilated.o: $(shell pkg-config --variable=includedir verilator)/veri
 	$(COMPILE.cc) $(OUTPUT_OPTION) $<
 
 $(VERILATOR_LIB) $(VERILATOR_HDRS): $(OUT_DIR)/VSim.mk 
-	cd $(OUT_DIR) && make -f VSim.mk
-
+	cd $(OUT_DIR) && make -f VSim.mk CXX=$(CXX)
+        
 $(OUT_DIR)/VerilatorFFI.o: $(SRCS) $(VERILATOR_HDRS)
 	$(COMPILE.cc) $(OUTPUT_OPTION) $<
 
