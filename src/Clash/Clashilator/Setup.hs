@@ -26,13 +26,15 @@ import Control.Lens hiding ((<.>))
 import Control.Monad (forM, foldM)
 import Data.String (fromString)
 import Data.List (intercalate)
+import Data.Maybe (maybeToList)
 import System.FilePath
 
-clashToVerilog :: LocalBuildInfo -> BuildFlags -> [FilePath] -> ModuleName -> FilePath -> IO (FilePath, Manifest)
-clashToVerilog localInfo buildFlags srcDirs mod outDir = do
+clashToVerilog :: LocalBuildInfo -> BuildFlags -> [FilePath] -> BuildInfo -> ModuleName -> FilePath -> IO (FilePath, Manifest)
+clashToVerilog localInfo buildFlags srcDirs buildInfo mod outDir = do
     pkgdbs <- absolutePackageDBPaths $ withPackageDB localInfo
     let dbflags = concat [ ["-package-db", path] | SpecificPackageDB path <- pkgdbs ]
         iflags = [ "-i" <> dir | dir <- srcDirs ]
+        clashflags = maybeToList $ lookup "x-clashilator-clash-flags" $ view customFieldsBI buildInfo
 
     Clash.defaultMain $ concat
       [ [ "--verilog"
@@ -41,6 +43,7 @@ clashToVerilog localInfo buildFlags srcDirs mod outDir = do
         ]
       , iflags
       , dbflags
+      , clashflags
       ]
 
     let (modDir:_) = components mod
@@ -65,7 +68,7 @@ buildVerilator' localInfo buildFlags compName buildInfo topEntityModule = do
             Just (pkgConfig, _) -> getProgramOutput verbosity pkgConfig ["--cflags", "verilator"]
 
     -- TODO: dependency tracking
-    (verilogDir, manifest) <- clashToVerilog localInfo buildFlags srcDirs topEntityModule synDir
+    (verilogDir, manifest) <- clashToVerilog localInfo buildFlags srcDirs buildInfo topEntityModule synDir
     Clashilator.generateFiles (Just cflags) verilogDir verilatorDir (fromString <$> clk) manifest
 
     -- TODO: get `make` location from configuration
