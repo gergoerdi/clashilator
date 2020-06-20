@@ -81,20 +81,24 @@ buildVerilator' localInfo buildFlags compName buildInfo topEntityModule = do
 
     let fixupOptions f (PerCompilerFlavor x y) = PerCompilerFlavor (f x) (f y)
 
-        linkFlags =
+        compileFlags =
             [ "-fPIC"
-            , "-pgml", "g++"
-            , "-optl-Wl,--whole-archive"
-            , "-optl-Wl,-Bstatic"
-            , "-optl-Wl,-l" <> lib
-            , "-optl-Wl,-Bdynamic"
-            , "-optl-Wl,--no-whole-archive"
+            , "-pgml c++"
+            ]
+
+        ldFlags =
+            [ "-Wl,--whole-archive"
+            , "-Wl,-Bstatic"
+            , "-Wl,-l" <> lib
+            , "-Wl,-Bdynamic"
+            , "-Wl,--no-whole-archive"
             ]
 
     return $ buildInfo
       & includeDirs %~ (incDir:)
       & extraLibDirs %~ (libDir:)
-      & options %~ fixupOptions (linkFlags++)
+      & options %~ fixupOptions (compileFlags++)
+      & ldOptions %~ (ldFlags++)
       & hsSourceDirs %~ (incDir:)
       & otherModules %~ (fromComponents ["Clash", "Clashilator", "FFI"]:)
   where
