@@ -97,6 +97,7 @@ buildVerilator' localInfo buildFlags compName buildInfo topEntityModule = do
     return $ buildInfo
       & includeDirs %~ (incDir:)
       & extraLibDirs %~ (libDir:)
+      & extraLibs %~ ("stdc++":)
       & options %~ fixupOptions (compileFlags++)
       & ldOptions %~ (ldFlags++)
       & hsSourceDirs %~ (incDir:)
