@@ -26,19 +26,23 @@ import Control.Lens hiding ((<.>))
 import Control.Monad (forM, foldM)
 import Data.String (fromString)
 import Data.List (intercalate)
-import Data.Maybe (maybeToList)
+import Data.Maybe (maybeToList, fromMaybe)
 import System.FilePath
 
-clashToVerilog :: LocalBuildInfo -> BuildFlags -> [FilePath] -> BuildInfo -> ModuleName -> FilePath -> IO (FilePath, Manifest)
-clashToVerilog localInfo buildFlags srcDirs buildInfo mod outDir = do
+lookupX :: String -> BuildInfo -> Maybe String
+lookupX key buildInfo = lookup ("x-clashilator-" <> key) (view customFieldsBI buildInfo)
+
+clashToVerilog :: LocalBuildInfo -> BuildFlags -> [FilePath] -> BuildInfo -> ModuleName -> String -> FilePath -> IO (FilePath, Manifest)
+clashToVerilog localInfo buildFlags srcDirs buildInfo mod entity outDir = do
     pkgdbs <- absolutePackageDBPaths $ withPackageDB localInfo
     let dbflags = concat [ ["-package-db", path] | SpecificPackageDB path <- pkgdbs ]
         iflags = [ "-i" <> dir | dir <- srcDirs ]
-        clashflags = maybeToList $ lookup "x-clashilator-clash-flags" $ view customFieldsBI buildInfo
+        clashflags = maybeToList $ lookupX "clash-flags" buildInfo
 
     Clash.defaultMain $ concat
       [ [ "--verilog"
         , "-outputdir", outDir
+        , "-main-is", entity
         , intercalate "." (components mod)
         ]
       , iflags
@@ -47,20 +51,21 @@ clashToVerilog localInfo buildFlags srcDirs buildInfo mod outDir = do
       ]
 
     let (modDir:_) = components mod
-        verilogDir = outDir </> "verilog" </> modDir </> "topEntity"
-    manifest <- read <$> readFile (verilogDir </> "topEntity.manifest")
+        verilogDir = outDir </> "verilog" </> modDir </> entity
+    manifest <- read <$> readFile (verilogDir </> entity <.> "manifest")
 
     return (verilogDir, manifest)
 
 buildVerilator :: LocalBuildInfo -> BuildFlags -> Maybe UnqualComponentName -> BuildInfo -> IO BuildInfo
 buildVerilator localInfo buildFlags compName buildInfo = case top of
     Nothing -> return buildInfo
-    Just topEntityModule -> buildVerilator' localInfo buildFlags compName buildInfo (fromString topEntityModule)
+    Just mod -> buildVerilator' localInfo buildFlags compName buildInfo (fromString mod) entity
   where
-    top = lookup "x-clashilator-top-is" $ view customFieldsBI buildInfo
+    top = lookupX "top-is" buildInfo
+    entity = fromMaybe "topEntity" $ lookupX "entity" buildInfo
 
-buildVerilator' :: LocalBuildInfo -> BuildFlags -> Maybe UnqualComponentName -> BuildInfo -> ModuleName -> IO BuildInfo
-buildVerilator' localInfo buildFlags compName buildInfo topEntityModule = do
+buildVerilator' :: LocalBuildInfo -> BuildFlags -> Maybe UnqualComponentName -> BuildInfo -> ModuleName -> String -> IO BuildInfo
+buildVerilator' localInfo buildFlags compName buildInfo mod entity = do
     cflags <- do
         mpkgConfig <- needProgram verbosity pkgConfigProgram (withPrograms localInfo)
         case mpkgConfig of
@@ -68,7 +73,7 @@ buildVerilator' localInfo buildFlags compName buildInfo topEntityModule = do
             Just (pkgConfig, _) -> getProgramOutput verbosity pkgConfig ["--cflags", "verilator"]
 
     -- TODO: dependency tracking
-    (verilogDir, manifest) <- clashToVerilog localInfo buildFlags srcDirs buildInfo topEntityModule synDir
+    (verilogDir, manifest) <- clashToVerilog localInfo buildFlags srcDirs buildInfo mod entity synDir
     Clashilator.generateFiles (Just cflags) verilogDir verilatorDir (fromString <$> clk) manifest
 
     -- TODO: get `make` location from configuration
