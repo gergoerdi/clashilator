@@ -37,7 +37,7 @@ clashToVerilog localInfo buildFlags srcDirs buildInfo mod entity outDir = do
     pkgdbs <- absolutePackageDBPaths $ withPackageDB localInfo
     let dbflags = concat [ ["-package-db", path] | SpecificPackageDB path <- pkgdbs ]
         iflags = [ "-i" <> dir | dir <- srcDirs ]
-        clashflags = maybeToList $ lookupX "clash-flags" buildInfo
+        clashflags = maybe [] words $ lookupX "clash-flags" buildInfo
 
     Clash.defaultMain $ concat
       [ [ "--verilog"
