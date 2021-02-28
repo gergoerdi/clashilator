@@ -26,7 +26,7 @@ import Distribution.Types.Lens
 import Control.Lens hiding ((<.>))
 import Control.Monad (forM, foldM)
 import Data.String (fromString)
-import Data.List (intercalate)
+import Data.List (intercalate, sort, nub)
 import Data.Maybe (maybeToList, fromMaybe)
 import System.FilePath
 
@@ -36,7 +36,8 @@ lookupX key buildInfo = lookup ("x-clashilator-" <> key) (view customFieldsBI bu
 clashToVerilog :: LocalBuildInfo -> BuildFlags -> [FilePath] -> BuildInfo -> ModuleName -> String -> FilePath -> IO (FilePath, Manifest)
 clashToVerilog localInfo buildFlags srcDirs buildInfo mod entity outDir = do
     pkgdbs <- absolutePackageDBPaths $ withPackageDB localInfo
-    let dbflags = concat [ ["-package-db", path] | SpecificPackageDB path <- pkgdbs ]
+    let dbpaths = nub . sort $ [ path | SpecificPackageDB path <- pkgdbs ]
+        dbflags = concat [ ["-package-db", path] | path <- dbpaths ]
         iflags = [ "-i" <> dir | dir <- srcDirs ]
         clashflags = maybe [] words $ lookupX "clash-flags" buildInfo
 
