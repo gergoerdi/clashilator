@@ -17,6 +17,7 @@ import Distribution.Simple.LocalBuildInfo
 import Distribution.Simple.Setup
 import Distribution.Simple.Compiler
 import Distribution.Simple.Program
+import Distribution.Simple.Utils (infoNoWrap)
 import Distribution.Verbosity
 import Distribution.ModuleName
 import Distribution.Types.UnqualComponentName
@@ -39,22 +40,26 @@ clashToVerilog localInfo buildFlags srcDirs buildInfo mod entity outDir = do
         iflags = [ "-i" <> dir | dir <- srcDirs ]
         clashflags = maybe [] words $ lookupX "clash-flags" buildInfo
 
-    Clash.defaultMain $ concat
-      [ [ "--verilog"
-        , "-outputdir", outDir
-        , "-main-is", entity
-        , intercalate "." (components mod)
-        ]
-      , iflags
-      , dbflags
-      , clashflags
-      ]
+    let args = concat
+            [ [ "--verilog"
+              , "-outputdir", outDir
+              , "-main-is", entity
+              , intercalate "." (components mod)
+              ]
+            , iflags
+            , dbflags
+            , clashflags
+            ]
+    infoNoWrap verbosity $ unwords $ "Clash.defaultMain" : args
+    Clash.defaultMain args
 
     let (modDir:_) = components mod
         verilogDir = outDir </> "verilog" </> modDir </> entity
     manifest <- read <$> readFile (verilogDir </> entity <.> "manifest")
 
     return (verilogDir, manifest)
+  where
+    verbosity = fromFlagOrDefault normal (buildVerbosity buildFlags)
 
 buildVerilator :: LocalBuildInfo -> BuildFlags -> Maybe UnqualComponentName -> BuildInfo -> IO BuildInfo
 buildVerilator localInfo buildFlags compName buildInfo = case top of
