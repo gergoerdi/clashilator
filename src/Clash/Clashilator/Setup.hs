@@ -10,7 +10,7 @@ module Clash.Clashilator.Setup
 
 import qualified Clash.Main as Clash
 import qualified Clash.Clashilator as Clashilator
-import Clash.Driver.Types (Manifest)
+import Clash.Driver.Manifest (Manifest)
 
 import Distribution.Simple
 import Distribution.Simple.LocalBuildInfo

@@ -16,7 +16,6 @@ dependencies:
 
   - clash-lib
   - clash-ghc
-  - regex-applicative
   - text
   - filepath
   - directory

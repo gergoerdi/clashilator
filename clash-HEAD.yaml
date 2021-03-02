@@ -1,16 +1,19 @@
 name: clash-HEAD
-resolver: lts-15.9
+resolver: lts-17.2
 
 packages:
-  - github: gergoerdi/clash-compiler
-    commit: f7794f6710295bb72f9bd75a68a7dc51de5e30e3
+  - github: clash-lang/clash-compiler
+    commit: ce3d8fd1da5c9ef27bb006a2eefd3b682e8a3cd5
     subdirs:
       - clash-ghc
       - clash-prelude
       - clash-lib
-
-  - concurrent-supply-0.1.8
-  - shake-0.18.2
+      
+  - arrows-0.4.4.2
+  - Stream-0.4.7.2
+  - lazysmallcheck-0.6
+  - hedgehog-1.0.4
+  - tasty-hedgehog-1.0.1.0
 
 flags:
     clash-prelude:

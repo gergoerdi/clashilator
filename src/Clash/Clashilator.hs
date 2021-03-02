@@ -1,15 +1,13 @@
 {-# LANGUAGE RecordWildCards, OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE ApplicativeDo #-}
 module Clash.Clashilator (generateFiles) where
 
-import Clash.Driver.Types
+import Clash.Driver.Manifest
 
 import Data.Maybe (fromMaybe)
 import Data.Char (isDigit)
 import Control.Monad (forM_)
 
-import Text.Regex.Applicative
 
 import System.FilePath
 import System.Directory
@@ -63,18 +61,6 @@ cName = id
 hsName :: Text -> Text -> Text
 hsName tag s = tag <> s
 
-parsePort :: Text -> Text -> Port
-parsePort name ty = Port name $ fromMaybe (error err) $ match re (T.unpack ty)
-  where
-    err = unwords ["Invalid port type:", show ty]
-    re = pure 1 <|> (bitWidth <$> bus)
-    bus = sym '[' *> ((,) <$> num <* sym ':' <*> num) <* sym ']'
-    num = read <$> many (psym isDigit)
-
-    bitWidth (a, b)
-        | a < b = b - a + 1
-        | otherwise = a - b + 1
-
 getClock :: Maybe Text -> [Port] -> (Maybe Text, [Port])
 getClock (Just clk) (Port name 1 : ps) | name == clk = (Just name, ps)
 getClock _ ps = (Nothing, ps)
@@ -101,8 +87,8 @@ manifestInfo cflags srcDir outputDir clkName Manifest{..} = object
     , "outputDir"    .= outputDir
     ]
   where
-    (clock, ins) = getClock clkName $ zipWith parsePort portInNames portInTypes
-    outs = zipWith parsePort portOutNames portOutTypes
+    (clock, ins) = getClock clkName [ Port mpName mpWidth | ManifestPort{..} <- inPorts ]
+    outs = [ Port mpName mpWidth | ManifestPort{..} <- outPorts ]
 
 markEnds :: [Value] -> [Value]
 markEnds [] = []
