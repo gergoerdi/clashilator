@@ -14,6 +14,7 @@ dependencies:
   - Cabal
   - lens
 
+  - ghc
   - clash-lib
   - clash-ghc
   - text

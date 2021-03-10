@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, RankNTypes, FlexibleContexts #-}
+{-# LANGUAGE CPP, GADTs, RankNTypes, FlexibleContexts #-}
 module Clash.Clashilator.Setup
     ( clashToVerilog
     , buildVerilator
@@ -29,12 +29,18 @@ import Data.String (fromString)
 import Data.List (intercalate, sort, nub)
 import Data.Maybe (maybeToList, fromMaybe)
 import System.FilePath
+import GHC (Ghc)
+#if MIN_VERSION_ghc(8,10,0)
+import GHC (getSession, setSession)
+import HscTypes (HscEnv (..))
+import Linker
+#endif
 
 lookupX :: String -> BuildInfo -> Maybe String
 lookupX key buildInfo = lookup ("x-clashilator-" <> key) (view customFieldsBI buildInfo)
 
-clashToVerilog :: LocalBuildInfo -> BuildFlags -> [FilePath] -> BuildInfo -> ModuleName -> String -> FilePath -> IO (FilePath, Manifest)
-clashToVerilog localInfo buildFlags srcDirs buildInfo mod entity outDir = do
+clashToVerilog :: Ghc () -> LocalBuildInfo -> BuildFlags -> [FilePath] -> BuildInfo -> ModuleName -> String -> FilePath -> IO (FilePath, Manifest)
+clashToVerilog startAction localInfo buildFlags srcDirs buildInfo mod entity outDir = do
     pkgdbs <- absolutePackageDBPaths $ withPackageDB localInfo
     let dbpaths = nub . sort $ [ path | SpecificPackageDB path <- pkgdbs ]
         dbflags = concat [ ["-package-db", path] | path <- dbpaths ]
@@ -52,7 +58,7 @@ clashToVerilog localInfo buildFlags srcDirs buildInfo mod entity outDir = do
             , clashflags
             ]
     infoNoWrap verbosity $ unwords $ "Clash.defaultMain" : args
-    Clash.defaultMain args
+    Clash.defaultMainWithAction startAction args
 
     let modDir = intercalate "." (components mod)
         verilogDir = outDir </> modDir <.> entity
@@ -62,16 +68,16 @@ clashToVerilog localInfo buildFlags srcDirs buildInfo mod entity outDir = do
   where
     verbosity = fromFlagOrDefault normal (buildVerbosity buildFlags)
 
-buildVerilator :: LocalBuildInfo -> BuildFlags -> Maybe UnqualComponentName -> BuildInfo -> IO BuildInfo
-buildVerilator localInfo buildFlags compName buildInfo = case top of
+buildVerilator :: Ghc () -> LocalBuildInfo -> BuildFlags -> Maybe UnqualComponentName -> BuildInfo -> IO BuildInfo
+buildVerilator startAction localInfo buildFlags compName buildInfo = case top of
     Nothing -> return buildInfo
-    Just mod -> buildVerilator' localInfo buildFlags compName buildInfo (fromString mod) entity
+    Just mod -> buildVerilator' startAction localInfo buildFlags compName buildInfo (fromString mod) entity
   where
     top = lookupX "top-is" buildInfo
     entity = fromMaybe "topEntity" $ lookupX "entity" buildInfo
 
-buildVerilator' :: LocalBuildInfo -> BuildFlags -> Maybe UnqualComponentName -> BuildInfo -> ModuleName -> String -> IO BuildInfo
-buildVerilator' localInfo buildFlags compName buildInfo mod entity = do
+buildVerilator' :: Ghc () -> LocalBuildInfo -> BuildFlags -> Maybe UnqualComponentName -> BuildInfo -> ModuleName -> String -> IO BuildInfo
+buildVerilator' startAction localInfo buildFlags compName buildInfo mod entity = do
     cflags <- do
         mpkgConfig <- needProgram verbosity pkgConfigProgram (withPrograms localInfo)
         case mpkgConfig of
@@ -79,7 +85,7 @@ buildVerilator' localInfo buildFlags compName buildInfo mod entity = do
             Just (pkgConfig, _) -> getProgramOutput verbosity pkgConfig ["--cflags", "verilator"]
 
     -- TODO: dependency tracking
-    (verilogDir, manifest) <- clashToVerilog localInfo buildFlags srcDirs buildInfo mod entity synDir
+    (verilogDir, manifest) <- clashToVerilog startAction localInfo buildFlags srcDirs buildInfo mod entity synDir
     Clashilator.generateFiles (Just cflags) verilogDir verilatorDir (fromString <$> clk) manifest
 
     -- TODO: get `make` location from configuration
@@ -145,9 +151,17 @@ itagged :: Traversal' s a -> (a -> b) -> IndexedTraversal' b s a
 itagged l f = reindexed f (l . selfIndex)
 
 clashilate :: PackageDescription -> LocalBuildInfo -> BuildFlags -> IO PackageDescription
-clashilate pkg localInfo buildFlags =
+clashilate pkg localInfo buildFlags = do
+#if MIN_VERSION_ghc(8,10,0)
+    linker <- uninitializedLinker
+    let startAction = do
+            env <- getSession
+            setSession (env {hsc_dynLinker = linker})
+#else
+    let startAction = return ()
+#endif
     foldM (&) pkg $
-      [ itraverseOf focus $ buildVerilator localInfo buildFlags
+      [ itraverseOf focus $ buildVerilator startAction localInfo buildFlags
       | Clashilatable component getName <- clashilatables
       , let focus = itagged component getName <. buildInfo
       ]
