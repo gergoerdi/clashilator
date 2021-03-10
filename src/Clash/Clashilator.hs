@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards, OverloadedStrings, ViewPatterns #-}
 {-# LANGUAGE TemplateHaskell #-}
 module Clash.Clashilator (generateFiles) where
 
@@ -7,7 +7,7 @@ import Clash.Driver.Manifest
 import Data.Maybe (fromMaybe)
 import Data.Char (isDigit)
 import Control.Monad (forM_)
-
+import Data.List (partition)
 
 import System.FilePath
 import System.Directory
@@ -61,9 +61,14 @@ cName = id
 hsName :: Text -> Text -> Text
 hsName tag s = tag <> s
 
-getClock :: Maybe Text -> [Port] -> (Maybe Text, [Port])
-getClock (Just clk) (Port name 1 : ps) | name == clk = (Just name, ps)
-getClock _ ps = (Nothing, ps)
+getClockAndInPorts :: Maybe Text -> [ManifestPort] -> (Maybe Text, [Port])
+getClockAndInPorts clkName inPorts = (clk, [ Port mpName mpWidth | ManifestPort{..} <- inPorts' ])
+  where
+    (map mpName -> clks, inPorts') = partition mpIsClock inPorts
+    clk = case (clkName, clks) of
+        (Just clkName, clks) | clkName `elem` clks -> Just clkName
+        (Nothing, [clk]) -> Just clk
+        _ -> Nothing
 
 portInfo :: Text -> Port -> Value
 portInfo tag (Port name width) = object
@@ -87,7 +92,7 @@ manifestInfo cflags srcDir outputDir clkName Manifest{..} = object
     , "outputDir"    .= outputDir
     ]
   where
-    (clock, ins) = getClock clkName [ Port mpName mpWidth | ManifestPort{..} <- inPorts ]
+    (clock, ins) = getClockAndInPorts clkName inPorts
     outs = [ Port mpName mpWidth | ManifestPort{..} <- outPorts ]
 
 markEnds :: [Value] -> [Value]
