@@ -4,13 +4,10 @@ module Clash.Clashilator (generateFiles) where
 
 import Clash.Driver.Manifest
 
-import Data.Maybe (fromMaybe)
-import Data.Char (isDigit)
 import Control.Monad (forM_)
 import Data.List (partition)
 
 import System.FilePath
-import System.Directory
 
 import Data.Text (Text)
 import qualified Data.Text as T

@@ -15,7 +15,6 @@ import Clash.Driver.Manifest (Manifest, readManifest)
 import Distribution.Simple
 import Distribution.Simple.LocalBuildInfo
 import Distribution.Simple.Setup
-import Distribution.Simple.Compiler
 import Distribution.Simple.Program
 import Distribution.Simple.Utils (infoNoWrap)
 import Distribution.Verbosity
@@ -24,10 +23,9 @@ import Distribution.Types.UnqualComponentName
 
 import Distribution.Types.Lens
 import Control.Lens hiding ((<.>))
-import Control.Monad (forM, foldM)
-import Data.String (fromString)
+import Control.Monad (foldM)
 import Data.List (intercalate, sort, nub)
-import Data.Maybe (maybeToList, fromMaybe)
+import Data.Maybe (fromMaybe)
 import System.FilePath
 import GHC (Ghc)
 #if MIN_VERSION_ghc(8,10,0)

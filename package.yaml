@@ -19,7 +19,6 @@ dependencies:
   - clash-ghc
   - text
   - filepath
-  - directory
   - stache
   - aeson
   - unordered-containers
@@ -28,6 +27,9 @@ dependencies:
 
 source-dirs:
   - src
+
+ghc-options:
+  - -Wunused-imports
 
 extra-source-files:
   - README.md
