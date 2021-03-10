@@ -1,5 +1,6 @@
 {-# LANGUAGE RecordWildCards, ApplicativeDo #-}
 
+import Clash.Driver.Manifest
 import Clash.Clashilator
 import System.FilePath
 import Options.Applicative
@@ -43,7 +44,7 @@ main :: IO ()
 main = do
     Options{..} <- execParser optionsInfo
 
-    manifest <- read <$> readFile manifestPath
+    Just manifest <- readManifest manifestPath
     let inputDir = takeDirectory manifestPath
 
     generateFiles Nothing inputDir outputDir (fromString <$> clkName) manifest

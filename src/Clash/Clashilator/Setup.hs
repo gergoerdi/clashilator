@@ -10,7 +10,7 @@ module Clash.Clashilator.Setup
 
 import qualified Clash.Main as Clash
 import qualified Clash.Clashilator as Clashilator
-import Clash.Driver.Manifest (Manifest)
+import Clash.Driver.Manifest (Manifest, readManifest)
 
 import Distribution.Simple
 import Distribution.Simple.LocalBuildInfo
@@ -54,9 +54,9 @@ clashToVerilog localInfo buildFlags srcDirs buildInfo mod entity outDir = do
     infoNoWrap verbosity $ unwords $ "Clash.defaultMain" : args
     Clash.defaultMain args
 
-    let (modDir:_) = components mod
-        verilogDir = outDir </> "verilog" </> modDir </> entity
-    manifest <- read <$> readFile (verilogDir </> entity <.> "manifest")
+    let modDir = intercalate "." (components mod)
+        verilogDir = outDir </> modDir <.> entity
+    Just manifest <- readManifest (verilogDir </> "clash-manifest.json")
 
     return (verilogDir, manifest)
   where
