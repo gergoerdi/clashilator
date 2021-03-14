@@ -133,21 +133,20 @@ buildVerilator' startAction localInfo buildFlags compName buildInfo mod entity =
     verilatorDir = outDir </> "_clashilator" </> "verilator"
     synDir = outDir </> "_clashilator" </> "clash-syn"
 
-data Clashilatable where
-    Clashilatable
+data NamedComponent where
+    NamedComponent
         :: (HasBuildInfo a)
         => Traversal' PackageDescription a
-        -- -> (a -> Maybe UnqualComponentName)
         -> (a -> ComponentName)
-        -> Clashilatable
+        -> NamedComponent
 
-clashilatables :: [Clashilatable]
-clashilatables =
-    [ Clashilatable (library . each)      (CLibName . view libName)
-    , Clashilatable (subLibraries . each) (CLibName . view libName)
-    , Clashilatable (executables . each)  (CExeName . view exeName)
-    , Clashilatable (testSuites . each)   (CTestName . view testName)
-    , Clashilatable (benchmarks . each)   (CBenchName . view benchmarkName)
+namedComponents :: [NamedComponent]
+namedComponents =
+    [ NamedComponent (library . each)      (CLibName . view libName)
+    , NamedComponent (subLibraries . each) (CLibName . view libName)
+    , NamedComponent (executables . each)  (CExeName . view exeName)
+    , NamedComponent (testSuites . each)   (CTestName . view testName)
+    , NamedComponent (benchmarks . each)   (CBenchName . view benchmarkName)
     ]
 
 itagged :: Traversal' s a -> (a -> b) -> IndexedTraversal' b s a
@@ -168,7 +167,7 @@ clashilate localInfo buildFlags c = do
 updateBuildInfo :: Component -> BuildInfo -> PackageDescription -> PackageDescription
 updateBuildInfo c bi pkg = foldr ($) pkg $
     [ iover focus $ \ name -> if name == componentName c then const bi else id
-    | Clashilatable component getName <- clashilatables
+    | NamedComponent component getName <- namedComponents
     , let focus = itagged component getName <. buildInfo
     ]
 
