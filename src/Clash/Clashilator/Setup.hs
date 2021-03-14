@@ -20,10 +20,13 @@ import Distribution.Simple.Utils (infoNoWrap)
 import Distribution.Verbosity
 import Distribution.ModuleName
 import Distribution.Types.UnqualComponentName
+import Distribution.Types.ComponentRequestedSpec
+import qualified Distribution.Compat.Graph as G
+import qualified Data.Map as M
+import Distribution.Pretty
 
 import Distribution.Types.Lens
 import Control.Lens hiding ((<.>))
-import Control.Monad (foldM)
 import Data.List (intercalate, sort, nub)
 import Data.Maybe (fromMaybe)
 import System.FilePath
@@ -134,22 +137,24 @@ data Clashilatable where
     Clashilatable
         :: (HasBuildInfo a)
         => Traversal' PackageDescription a
-        -> (a -> Maybe UnqualComponentName)
+        -- -> (a -> Maybe UnqualComponentName)
+        -> (a -> ComponentName)
         -> Clashilatable
 
 clashilatables :: [Clashilatable]
 clashilatables =
-    [ Clashilatable (executables . each) (Just . view exeName)
-    , Clashilatable (library . each)     (const Nothing)
-    , Clashilatable (testSuites . each)  (Just . view testName)
-    , Clashilatable (benchmarks . each)  (Just . view benchmarkName)
+    [ Clashilatable (library . each)      (CLibName . view libName)
+    , Clashilatable (subLibraries . each) (CLibName . view libName)
+    , Clashilatable (executables . each)  (CExeName . view exeName)
+    , Clashilatable (testSuites . each)   (CTestName . view testName)
+    , Clashilatable (benchmarks . each)   (CBenchName . view benchmarkName)
     ]
 
 itagged :: Traversal' s a -> (a -> b) -> IndexedTraversal' b s a
 itagged l f = reindexed f (l . selfIndex)
 
-clashilate :: PackageDescription -> LocalBuildInfo -> BuildFlags -> IO PackageDescription
-clashilate pkg localInfo buildFlags = do
+clashilate :: LocalBuildInfo -> BuildFlags -> Component -> IO BuildInfo
+clashilate localInfo buildFlags c = do
 #if MIN_VERSION_ghc(8,10,0)
     linker <- uninitializedLinker
     let startAction = do
@@ -158,18 +163,37 @@ clashilate pkg localInfo buildFlags = do
 #else
     let startAction = return ()
 #endif
-    foldM (&) pkg $
-      [ itraverseOf focus $ buildVerilator startAction localInfo buildFlags
-      | Clashilatable component getName <- clashilatables
-      , let focus = itagged component getName <. buildInfo
-      ]
+    buildVerilator startAction localInfo buildFlags (componentNameString $ componentName c) (c ^. buildInfo)
+
+updateBuildInfo :: Component -> BuildInfo -> PackageDescription -> PackageDescription
+updateBuildInfo c bi pkg = foldr ($) pkg $
+    [ iover focus $ \ name -> if name == componentName c then const bi else id
+    | Clashilatable component getName <- clashilatables
+    , let focus = itagged component getName <. buildInfo
+    ]
 
 clashilatorMain :: IO ()
 clashilatorMain = defaultMainWithHooks simpleUserHooks
     { buildHook = clashilatorBuildHook
     }
 
+restrictLocalInfo :: Component -> ComponentLocalBuildInfo -> LocalBuildInfo -> LocalBuildInfo
+restrictLocalInfo c clbi localInfo = localInfo
+    { componentEnabledSpec = OneComponentRequestedSpec $ componentName c
+    , componentGraph = G.insert clbi G.empty
+    , componentNameMap = M.singleton (componentName c) [clbi]
+    }
+
+restrictBuildFlags :: Component -> BuildFlags -> BuildFlags
+restrictBuildFlags c buildFlags = buildFlags{ buildArgs = filter (== target) $ buildArgs buildFlags }
+  where
+    target = prettyShow $ componentName c
+
 clashilatorBuildHook :: PackageDescription -> LocalBuildInfo -> UserHooks -> BuildFlags -> IO ()
 clashilatorBuildHook pkg localInfo userHooks buildFlags = do
-    pkg' <- clashilate pkg localInfo buildFlags
-    buildHook simpleUserHooks pkg' localInfo userHooks buildFlags
+    withAllComponentsInBuildOrder pkg localInfo $ \c clbi -> do
+        localInfo <- return $ restrictLocalInfo c clbi localInfo
+        buildFlags <- return $ restrictBuildFlags c buildFlags
+        bi <- clashilate localInfo buildFlags c
+        pkg <- return $ updateBuildInfo c bi pkg
+        buildHook simpleUserHooks pkg localInfo userHooks buildFlags
