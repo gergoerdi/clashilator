@@ -11,7 +11,7 @@ license-file: LICENSE
 
 dependencies:
   - base
-  - Cabal
+  - Cabal >= 3.2.1.0
   - lens
 
   - ghc
