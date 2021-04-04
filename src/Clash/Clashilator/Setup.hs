@@ -13,6 +13,7 @@ import qualified Clash.Clashilator as Clashilator
 import Clash.Driver.Manifest (Manifest, readManifest)
 
 import Distribution.Simple
+import Distribution.Simple.Build
 import Distribution.Simple.LocalBuildInfo
 import Distribution.Simple.Setup
 import Distribution.Simple.Program
@@ -29,6 +30,7 @@ import Distribution.Types.Lens
 import Control.Lens hiding ((<.>))
 import Data.List (intercalate, sort, nub)
 import Data.Maybe (fromMaybe)
+import Control.Monad (unless, when)
 import System.FilePath
 import GHC (Ghc)
 #if MIN_VERSION_ghc(8,10,0)
@@ -176,23 +178,25 @@ clashilatorMain = defaultMainWithHooks simpleUserHooks
     { buildHook = clashilatorBuildHook
     }
 
-restrictLocalInfo :: Component -> ComponentLocalBuildInfo -> LocalBuildInfo -> LocalBuildInfo
-restrictLocalInfo c clbi localInfo = localInfo
-    { componentEnabledSpec = OneComponentRequestedSpec $ componentName c
-    , componentGraph = G.insert clbi G.empty
-    , componentNameMap = M.singleton (componentName c) [clbi]
-    }
-
 restrictBuildFlags :: Component -> BuildFlags -> BuildFlags
-restrictBuildFlags c buildFlags = buildFlags{ buildArgs = filter (== target) $ buildArgs buildFlags }
+restrictBuildFlags c buildFlags = buildFlags
+    { buildArgs = if isLib then ["lib:compucolor2"]
+                  else let xs = filter (== target) $ buildArgs buildFlags
+                       in if null xs then xs else "lib:compucolor2":xs
+    }
   where
     target = prettyShow $ componentName c
 
+    isLib = case c of
+        CLib{} -> True
+        _ -> False
+
 clashilatorBuildHook :: PackageDescription -> LocalBuildInfo -> UserHooks -> BuildFlags -> IO ()
-clashilatorBuildHook pkg localInfo userHooks buildFlags = do
+clashilatorBuildHook pkg localInfo userHooks flags = do
+    let reqSpec = componentEnabledSpec localInfo
     withAllComponentsInBuildOrder pkg localInfo $ \c clbi -> do
-        localInfo <- return $ restrictLocalInfo c clbi localInfo
-        buildFlags <- return $ restrictBuildFlags c buildFlags
-        bi <- clashilate localInfo buildFlags c
-        pkg <- return $ updateBuildInfo c bi pkg
-        buildHook simpleUserHooks pkg localInfo userHooks buildFlags
+        flags <- return $ restrictBuildFlags c flags
+        when (componentEnabled reqSpec c && not (null $ buildArgs flags)) $ do
+            bi <- clashilate localInfo flags c
+            pkg <- return $ updateBuildInfo c bi pkg
+            buildHook simpleUserHooks pkg localInfo userHooks flags
