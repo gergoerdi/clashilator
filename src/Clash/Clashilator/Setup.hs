@@ -43,8 +43,8 @@ lookupX :: String -> BuildInfo -> Maybe String
 lookupX key buildInfo = lookup ("x-clashilator-" <> key) (view customFieldsBI buildInfo)
 
 clashToVerilog :: Ghc () -> LocalBuildInfo -> BuildFlags -> [FilePath] -> BuildInfo -> ModuleName -> String -> FilePath -> IO (FilePath, Manifest)
-clashToVerilog startAction localInfo buildFlags srcDirs buildInfo mod entity outDir = do
-    pkgdbs <- absolutePackageDBPaths $ withPackageDB localInfo
+clashToVerilog startAction lbi flags srcDirs buildInfo mod entity outDir = do
+    pkgdbs <- absolutePackageDBPaths $ withPackageDB lbi
     let dbpaths = nub . sort $ [ path | SpecificPackageDB path <- pkgdbs ]
         dbflags = concat [ ["-package-db", path] | path <- dbpaths ]
         iflags = [ "-i" <> dir | dir <- srcDirs ]
@@ -69,26 +69,27 @@ clashToVerilog startAction localInfo buildFlags srcDirs buildInfo mod entity out
 
     return (verilogDir, manifest)
   where
-    verbosity = fromFlagOrDefault normal (buildVerbosity buildFlags)
+    verbosity = fromFlagOrDefault normal (buildVerbosity flags)
+    distPref  = fromFlag (buildDistPref flags)
 
 buildVerilator :: Ghc () -> LocalBuildInfo -> BuildFlags -> Maybe UnqualComponentName -> BuildInfo -> IO BuildInfo
-buildVerilator startAction localInfo buildFlags compName buildInfo = case top of
+buildVerilator startAction lbi flags compName buildInfo = case top of
     Nothing -> return buildInfo
-    Just mod -> buildVerilator' startAction localInfo buildFlags compName buildInfo (fromString mod) entity
+    Just mod -> buildVerilator' startAction lbi flags compName buildInfo (fromString mod) entity
   where
     top = lookupX "top-is" buildInfo
     entity = fromMaybe "topEntity" $ lookupX "entity" buildInfo
 
 buildVerilator' :: Ghc () -> LocalBuildInfo -> BuildFlags -> Maybe UnqualComponentName -> BuildInfo -> ModuleName -> String -> IO BuildInfo
-buildVerilator' startAction localInfo buildFlags compName buildInfo mod entity = do
+buildVerilator' startAction lbi flags compName buildInfo mod entity = do
     cflags <- do
-        mpkgConfig <- needProgram verbosity pkgConfigProgram (withPrograms localInfo)
+        mpkgConfig <- needProgram verbosity pkgConfigProgram (withPrograms lbi)
         case mpkgConfig of
             Nothing -> error "Cannot find pkg-config program"
             Just (pkgConfig, _) -> getProgramOutput verbosity pkgConfig ["--cflags", "verilator"]
 
     -- TODO: dependency tracking
-    (verilogDir, manifest) <- clashToVerilog startAction localInfo buildFlags srcDirs buildInfo mod entity synDir
+    (verilogDir, manifest) <- clashToVerilog startAction lbi flags srcDirs buildInfo mod entity synDir
     Clashilator.generateFiles (Just cflags) verilogDir verilatorDir (fromString <$> clk) manifest
 
     -- TODO: get `make` location from configuration
@@ -123,15 +124,15 @@ buildVerilator' startAction localInfo buildFlags compName buildInfo mod entity =
       & hsSourceDirs %~ (incDir:)
       & otherModules %~ (fromComponents ["Clash", "Clashilator", "FFI"]:)
   where
-    verbosity = fromFlagOrDefault normal (buildVerbosity buildFlags)
+    verbosity = fromFlagOrDefault normal (buildVerbosity flags)
 
     clk = lookup "x-clashilator-clock" $ view customFieldsBI buildInfo
 
     -- TODO: Maybe we could add extra source dirs from "x-clashilator-source-dirs"?
     srcDirs = view hsSourceDirs buildInfo
     outDir = case compName of
-        Nothing -> buildDir localInfo
-        Just name -> buildDir localInfo </> unUnqualComponentName name
+        Nothing -> buildDir lbi
+        Just name -> buildDir lbi </> unUnqualComponentName name
     verilatorDir = outDir </> "_clashilator" </> "verilator"
     synDir = outDir </> "_clashilator" </> "clash-syn"
 
@@ -155,7 +156,7 @@ itagged :: Traversal' s a -> (a -> b) -> IndexedTraversal' b s a
 itagged l f = reindexed f (l . selfIndex)
 
 clashilate :: LocalBuildInfo -> BuildFlags -> Component -> IO BuildInfo
-clashilate localInfo buildFlags c = do
+clashilate lbi flags c = do
 #if MIN_VERSION_ghc(8,10,0)
     linker <- uninitializedLinker
     let startAction = do
@@ -164,7 +165,7 @@ clashilate localInfo buildFlags c = do
 #else
     let startAction = return ()
 #endif
-    buildVerilator startAction localInfo buildFlags (componentNameString $ componentName c) (c ^. buildInfo)
+    buildVerilator startAction lbi flags (componentNameString $ componentName c) (c ^. buildInfo)
 
 updateBuildInfo :: Component -> BuildInfo -> PackageDescription -> PackageDescription
 updateBuildInfo c bi pkg = foldr ($) pkg $
@@ -192,11 +193,11 @@ restrictBuildFlags c buildFlags = buildFlags
         _ -> False
 
 clashilatorBuildHook :: PackageDescription -> LocalBuildInfo -> UserHooks -> BuildFlags -> IO ()
-clashilatorBuildHook pkg localInfo userHooks flags = do
-    let reqSpec = componentEnabledSpec localInfo
-    withAllComponentsInBuildOrder pkg localInfo $ \c clbi -> do
+clashilatorBuildHook pkg lbi userHooks flags = do
+    let reqSpec = componentEnabledSpec lbi
+    withAllComponentsInBuildOrder pkg lbi $ \c clbi -> do
         flags <- return $ restrictBuildFlags c flags
         when (componentEnabled reqSpec c && not (null $ buildArgs flags)) $ do
-            bi <- clashilate localInfo flags c
+            bi <- clashilate lbi flags c
             pkg <- return $ updateBuildInfo c bi pkg
-            buildHook simpleUserHooks pkg localInfo userHooks flags
+            buildHook simpleUserHooks pkg lbi userHooks flags
