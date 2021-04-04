@@ -15,6 +15,7 @@ import Clash.Driver.Manifest (Manifest, readManifest)
 import Distribution.Simple
 import Distribution.Simple.Build
 import Distribution.Simple.LocalBuildInfo
+import Distribution.Simple.BuildTarget
 import Distribution.Simple.Setup
 import Distribution.Simple.Program
 import Distribution.Simple.Utils (infoNoWrap)
@@ -179,24 +180,18 @@ clashilatorMain = defaultMainWithHooks simpleUserHooks
     { buildHook = clashilatorBuildHook
     }
 
-restrictBuildFlags :: Component -> BuildFlags -> BuildFlags
-restrictBuildFlags c buildFlags = buildFlags
-    { buildArgs = if isLib then ["lib:compucolor2"]
-                  else let xs = filter (== target) $ buildArgs buildFlags
-                       in if null xs then xs else "lib:compucolor2":xs
+restrictBuildFlags :: PackageDescription -> Component -> BuildFlags -> BuildFlags
+restrictBuildFlags pkg c buildFlags = buildFlags
+    { buildArgs = selectedArgs
     }
   where
-    target = prettyShow $ componentName c
-
-    isLib = case c of
-        CLib{} -> True
-        _ -> False
+    selectedArgs = [showBuildTarget (packageId pkg) $ BuildTargetComponent $ componentName c]
 
 clashilatorBuildHook :: PackageDescription -> LocalBuildInfo -> UserHooks -> BuildFlags -> IO ()
 clashilatorBuildHook pkg lbi userHooks flags = do
     let reqSpec = componentEnabledSpec lbi
     withAllComponentsInBuildOrder pkg lbi $ \c clbi -> do
-        flags <- return $ restrictBuildFlags c flags
+        flags <- return $ restrictBuildFlags pkg c flags
         when (componentEnabled reqSpec c && not (null $ buildArgs flags)) $ do
             bi <- clashilate lbi flags c
             pkg <- return $ updateBuildInfo c bi pkg
