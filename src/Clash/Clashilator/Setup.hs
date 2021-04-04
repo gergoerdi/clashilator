@@ -18,6 +18,8 @@ import Distribution.Simple.LocalBuildInfo
 import Distribution.Simple.BuildTarget
 import Distribution.Simple.Setup
 import Distribution.Simple.Program
+import Distribution.Simple.Register
+import Distribution.Simple.Build (createInternalPackageDB)
 import Distribution.Simple.Utils (infoNoWrap)
 import Distribution.Verbosity
 import Distribution.ModuleName
@@ -45,8 +47,14 @@ lookupX key buildInfo = lookup ("x-clashilator-" <> key) (view customFieldsBI bu
 
 clashToVerilog :: Ghc () -> LocalBuildInfo -> BuildFlags -> [FilePath] -> BuildInfo -> ModuleName -> String -> FilePath -> IO (FilePath, Manifest)
 clashToVerilog startAction lbi flags srcDirs buildInfo mod entity outDir = do
+    pkgdb0 <- do
+        let dbPath = internalPackageDBPath lbi distPref
+        existsAlready <- doesPackageDBExist dbPath
+        if existsAlready
+          then return $ SpecificPackageDB dbPath
+          else createInternalPackageDB verbosity lbi distPref
     pkgdbs <- absolutePackageDBPaths $ withPackageDB lbi
-    let dbpaths = nub . sort $ [ path | SpecificPackageDB path <- pkgdbs ]
+    let dbpaths = nub . sort $ [ path | SpecificPackageDB path <- pkgdb0:pkgdbs ]
         dbflags = concat [ ["-package-db", path] | path <- dbpaths ]
         iflags = [ "-i" <> dir | dir <- srcDirs ]
         clashflags = maybe [] words $ lookupX "clash-flags" buildInfo
