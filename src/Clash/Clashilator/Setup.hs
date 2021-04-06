@@ -13,21 +13,16 @@ import qualified Clash.Clashilator as Clashilator
 import Clash.Driver.Manifest (Manifest, readManifest)
 
 import Distribution.Simple
-import Distribution.Simple.Build
 import Distribution.Simple.LocalBuildInfo
 import Distribution.Simple.BuildTarget
 import Distribution.Simple.Setup
 import Distribution.Simple.Program
 import Distribution.Simple.Register
-import Distribution.Simple.Build (createInternalPackageDB)
 import Distribution.Simple.Utils (infoNoWrap)
 import Distribution.Verbosity
 import Distribution.ModuleName
 import Distribution.Types.UnqualComponentName
 import Distribution.Types.ComponentRequestedSpec
-import qualified Distribution.Compat.Graph as G
-import qualified Data.Map as M
-import Distribution.Pretty
 
 import Distribution.Types.Lens
 import Control.Lens hiding ((<.>))
