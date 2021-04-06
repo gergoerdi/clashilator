@@ -82,6 +82,7 @@ manifestInfo cflags srcDir outputDir clkName Manifest{..} = object
     [ "inPorts"      .= (markEnds $ map (portInfo "i") ins)
     , "outPorts"     .= (markEnds $ map (portInfo "o") outs)
     , "clock"        .= fmap (\clock -> object ["cName" .= cName clock]) clock
+    , "hdlDir"       .= srcDir
     , "srcs"         .= [ object ["verilogPath" .= TL.pack (srcDir </> T.unpack component <.> "v")]
                         | component <- componentNames
                         ]
