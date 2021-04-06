@@ -48,8 +48,8 @@ clashToVerilog startAction lbi flags srcDirs buildInfo mod entity outDir = do
         unless existsAlready $ do
             createPackageDB verbosity (compiler lbi) (withPrograms lbi) False dbPath
         return $ SpecificPackageDB dbPath
-    pkgdbs <- absolutePackageDBPaths $ withPackageDB lbi
-    let dbpaths = nub . sort $ [ path | SpecificPackageDB path <- pkgdb0:pkgdbs ]
+    pkgdbs <- (pkgdb0:) <$> absolutePackageDBPaths (withPackageDB lbi)
+    let dbpaths = nub . sort $ [ path | SpecificPackageDB path <- pkgdbs ]
         dbflags = concat [ ["-package-db", path] | path <- dbpaths ]
         iflags = [ "-i" <> dir | dir <- srcDirs ]
         clashflags = maybe [] words $ lookupX "clash-flags" buildInfo
