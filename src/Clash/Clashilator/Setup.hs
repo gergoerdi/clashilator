@@ -50,9 +50,9 @@ clashToVerilog startAction lbi flags srcDirs buildInfo mod entity outDir = do
     pkgdb0 <- do
         let dbPath = internalPackageDBPath lbi distPref
         existsAlready <- doesPackageDBExist dbPath
-        if existsAlready
-          then return $ SpecificPackageDB dbPath
-          else createInternalPackageDB verbosity lbi distPref
+        unless existsAlready $ do
+            createPackageDB verbosity (compiler lbi) (withPrograms lbi) False dbPath
+        return $ SpecificPackageDB dbPath
     pkgdbs <- absolutePackageDBPaths $ withPackageDB lbi
     let dbpaths = nub . sort $ [ path | SpecificPackageDB path <- pkgdb0:pkgdbs ]
         dbflags = concat [ ["-package-db", path] | path <- dbpaths ]
