@@ -4,7 +4,7 @@ HDL_DIR         = {{hdlDir}}
 OUT_DIR		= {{outputDir}}/obj
 VERILATOR_HDRS	= $(OUT_DIR)/VSim.h
 VERILATOR_LIB	= $(OUT_DIR)/VSim__ALL.a
-VERILATOR_OBJS  = $(OUT_DIR)/verilated.o
+VERILATOR_OBJS  = $(OUT_DIR)/verilated.o $(OUT_DIR)/verilated_threads.o
 
 SRC_DIR         = {{outputDir}}/src
 SRCS	        = $(foreach file, Impl.cpp Impl.h Interface.h, $(SRC_DIR)/$(file))
@@ -15,9 +15,9 @@ CPPFLAGS	= {{cflags}}
 {{^verilator}}
 CPPFLAGS	= $(shell pkg-config --cflags verilator)
 {{/verilator}}
-CPPFLAGS	+= -I$(OUT_DIR)
+CPPFLAGS	+= -I$(OUT_DIR) -DVL_THREADED=1
 CXXFLAGS	= -fPIC -O3
-VERILATOR_FLAGS	= -CFLAGS '-O3 -fPIC' -Wno-fatal --prefix VSim +1364-2001ext+v -I$(HDL_DIR)
+VERILATOR_FLAGS	= -CFLAGS '-O3 -fPIC' -Wno-fatal --prefix VSim +1364-2001ext+v -I$(HDL_DIR) --threads 4
 
 all: $(OUT_DIR)/libVerilatorFFI.a
 
@@ -30,6 +30,9 @@ $(OUT_DIR)/VSim.mk: $(VERILOG_SRCS)
 	verilator $(VERILATOR_FLAGS) --cc -Mdir $(OUT_DIR) $(VERILOG_SRCS)
 
 $(OUT_DIR)/verilated.o: $(shell pkg-config --variable=includedir verilator)/verilated.cpp
+	$(COMPILE.cc) $(OUTPUT_OPTION) $<
+
+$(OUT_DIR)/verilated_threads.o: $(shell pkg-config --variable=includedir verilator)/verilated_threads.cpp
 	$(COMPILE.cc) $(OUTPUT_OPTION) $<
 
 $(VERILATOR_LIB) $(VERILATOR_HDRS): $(OUT_DIR)/VSim.mk 
