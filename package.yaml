@@ -3,20 +3,21 @@ version: 0.1.0
 category: Hardware, Development
 synopsis: Automated Clash to Verilator bridge
 description:
-  Code generator and Setup.hs hooks to generate a Verilator simulation
+  Code generator and @Setup.hs@ hooks to generate a Verilator simulation
   and access it from Clash
-maintainer: Gergő Érdi <gergo@erdi.hu>
+author: Gergő Érdi
+maintainer: gergo@erdi.hu
 github: gergoerdi/clashilator
-license-file: LICENSE
+license: MIT
 
 dependencies:
-  - base
+  - base >= 4.14 && < 5
   - Cabal >= 3.2.1.0
   - lens
 
   - ghc
-  - clash-lib
-  - clash-ghc
+  - clash-lib ^>= 1.4.2
+  - clash-ghc ^>= 1.4.2
   - text
   - filepath
   - stache
