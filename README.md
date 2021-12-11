@@ -3,8 +3,8 @@
 This package provides Cabal `Setup.hs` functionality to automatically
 integrate Verilator into your Clash project.
 
-* Detailed introduction: https://unsafeperform.io/blog/2020-05-07-integrating_verilator_and_clash_via_cabal/
-* Example project: https://github.com/gergoerdi/clashilator-example
+* Detailed introduction: <https://unsafePerform.IO/blog/2020-05-07-integrating_verilator_and_clash_via_cabal/>
+* Example project: <https://github.com/gergoerdi/clashilator-example>
 
 ## Usage
 
@@ -17,12 +17,15 @@ topEntity
     :: "CLK" ::: Clock System
     -> "FOO" ::: Signal System Bit
     -> "BAR" ::: Signal System (Unsigned 4)
-    -> ("BAZ" ::: Signal System (Unsigned 10), "QUUX" ::: Signal System Bit)
+    -> ( "BAZ"  ::: Signal System (Unsigned 10)
+       , "QUUX" ::: Signal System Bit
+       )
 topEntity = ...
 makeTopEntity 'topEntity
 ```
 
-and you put this in your Cabal file:
+and you put this in your Cabal file (`x-clashilator-clock` can be
+omitted if you have only a single clock):
 
 ```
 custom-setup
