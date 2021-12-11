@@ -21,7 +21,7 @@ dependencies:
   - text
   - filepath
   - stache
-  - aeson
+  - aeson ^>= 1.5 || ^>= 2.0
   - unordered-containers
   - optparse-applicative
   - containers

@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards, OverloadedStrings, ViewPatterns #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell, CPP #-}
 module Clash.Clashilator (generateFiles) where
 
 import Clash.Driver.Manifest
@@ -17,7 +17,11 @@ import Development.Shake (writeFileChanged)
 import Text.Mustache
 import qualified Text.Mustache.Compile.TH as TH
 import Data.Aeson hiding (Options)
-import qualified Data.HashMap.Strict as H
+#if MIN_VERSION_aeson(2, 0, 0)
+import qualified Data.Aeson.KeyMap as Aeson
+#else
+import qualified Data.HashMap.Strict as Aeson
+#endif
 
 data Port = Port Text Int
     deriving Show
@@ -97,7 +101,7 @@ markEnds :: [Value] -> [Value]
 markEnds [] = []
 markEnds (v:vs) = markStart v : vs
   where
-    markStart (Object o) = Object $ o <> H.fromList [ "first" .= True ]
+    markStart (Object o) = Object $ o <> Aeson.fromList [ "first" .= True ]
 
 templates =
     [ ("src/Interface.h", $(TH.compileMustacheFile "template/Interface.h.mustache"))
