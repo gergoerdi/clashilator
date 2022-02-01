@@ -94,6 +94,11 @@ manifestInfo cflags srcDir outputDir clkName Manifest{..} = object
     , "outputDir"    .= outputDir
     ]
   where
+#if MIN_VERSION_clash_lib(1, 6, 0)
+    inPorts = [ port | port@ManifestPort{..} <- ports, mpDirection `elem` [In, InOut] ]
+    outPorts = [ port | port@ManifestPort{..} <- ports, mpDirection `elem` [InOut, Out] ]
+#endif
+
     (clock, ins) = getClockAndInPorts clkName inPorts
     outs = [ Port mpName mpWidth | ManifestPort{..} <- outPorts ]
 

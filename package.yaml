@@ -1,5 +1,5 @@
 name: clashilator
-version: 0.1.1
+version: 0.1.2
 category: Hardware, Development
 synopsis: Automated Clash to Verilator bridge
 description:
@@ -16,8 +16,8 @@ dependencies:
   - lens
 
   - ghc
-  - clash-lib ^>= 1.4.2
-  - clash-ghc ^>= 1.4.2
+  - clash-lib ^>= 1.4.2 || ^>= 1.6.1
+  - clash-ghc ^>= 1.4.2 || ^>= 1.6.1
   - text
   - filepath
   - stache ^>= 2.3
