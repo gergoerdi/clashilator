@@ -29,9 +29,15 @@ import Data.Maybe (fromMaybe)
 import System.FilePath
 import GHC (Ghc)
 #if MIN_VERSION_ghc(8,10,0)
+#if MIN_VERSION_ghc(9,0,0)
+import GHC (getSession, setSession)
+import GHC.Driver.Types (HscEnv(..))
+import GHC.Runtime.Linker
+#else
 import GHC (getSession, setSession)
 import HscTypes (HscEnv (..))
 import Linker
+#endif
 #endif
 
 lookupX :: String -> BuildInfo -> Maybe String
@@ -119,7 +125,7 @@ buildVerilator' startAction lbi flags compName buildInfo mod entity = do
       & options %~ fixupOptions (compileFlags++)
       & ldOptions %~ (ldFlags++)
       & hsSourceDirs %~ (incDir:)
-      & otherModules %~ (fromComponents ["Clash", "Clashilator", "FFI"]:)
+      & otherModules %~ (fromString "Clash.Clashilator.FFI":)
   where
     verbosity = fromFlagOrDefault normal (buildVerbosity flags)
 
