@@ -5,29 +5,29 @@
 
 packages:
 - completed:
-    hackage: clash-prelude-1.4.6@sha256:fdc6a41cd9acd10f1fe5fc585d101590003a78453ed2f9a503c0e415d6165e73,15932
+    hackage: clash-prelude-1.6.4@sha256:b8c8b679236828d59e0f0c01658437a44ffa4fad6a72743459084ed4942f9899,16769
     pantry-tree:
-      size: 11699
-      sha256: 5a9c1c86f4b66547fda76cd88018c9be4c51472aa14116376daac74badf027e8
+      size: 13292
+      sha256: bac843b8cd3d623995deaf73092b6b19dc6198bd41c730a5634b88cd1d03d924
   original:
-    hackage: clash-prelude-1.4.6
+    hackage: clash-prelude-1.6.4
 - completed:
-    hackage: clash-lib-1.4.6@sha256:30898bf9c4b0c70cecd1f389f2549acea910a756b65c0b2740533592d00fafc9,12829
+    hackage: clash-lib-1.6.4@sha256:336e57d424852f2ad9285b6fa820e634f32d39d52755d3245d5f4ac04ea37f85,13688
     pantry-tree:
-      size: 19522
-      sha256: 9cd3c4124e2f9f150dcd620d794905be754db51e60e2b54bb952d3e2676df501
+      size: 22460
+      sha256: 750ffc9d2f5ed3690f6a2a7da46090970594dbbcf8a6b55d785e8f809b4dfbf1
   original:
-    hackage: clash-lib-1.4.6
+    hackage: clash-lib-1.6.4
 - completed:
-    hackage: clash-ghc-1.4.6@sha256:9bd5b89765079f050df2fdf17fe91cb176f0a18276a8a3d7220ac889d2acfa42,9011
+    hackage: clash-ghc-1.6.4@sha256:43e4c9c949bf9623633f08bb09bb4495578b517be4e99140d9ea22dd2a9cd13b,9042
     pantry-tree:
-      size: 4073
-      sha256: fe7f13de0d2fcec3fa987cfcda8336de2ef8aca699a74ff47e1f16e7edc01dff
+      size: 3634
+      sha256: 9484d37cd6c8cb0217a02cf020b6398dbe1a68fa332472b40cfb511ce54a743a
   original:
-    hackage: clash-ghc-1.4.6
+    hackage: clash-ghc-1.6.4
 snapshots:
 - completed:
-    size: 586069
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/18/14.yaml
-    sha256: 87842ecbaa8ca9cee59a7e6be52369dbed82ed075cb4e0d152614a627e8fd488
-  original: lts-18.14
+    size: 619391
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/19/21.yaml
+    sha256: fe8926aaa3f05bb1a0a82551d2e221f267726fe73ac369d74f7b909d45b92fba
+  original: lts-19.21
