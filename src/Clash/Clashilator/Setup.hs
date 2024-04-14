@@ -21,6 +21,9 @@ import Distribution.Simple.Utils (infoNoWrap)
 import Distribution.Verbosity
 import Distribution.ModuleName
 import Distribution.Types.UnqualComponentName
+#if MIN_VERSION_Cabal(3,8,0)
+import Distribution.Utils.Path
+#endif
 
 import Distribution.Types.Lens
 import Control.Lens hiding ((<.>))
@@ -28,14 +31,27 @@ import Data.List (intercalate, sort, nub)
 import Data.Maybe (fromMaybe)
 import System.FilePath
 import GHC (Ghc)
-#if MIN_VERSION_ghc(9,0,0)
+#if MIN_VERSION_ghc(9,4,0)
+#elif MIN_VERSION_ghc(9,0,0)
+#define RESET_LINKER
 import GHC (getSession, setSession)
-import GHC.Driver.Types (HscEnv (..))
+import GHC.Driver.Types (HscEnv(..))
 import GHC.Runtime.Linker
 #elif MIN_VERSION_ghc(8,10,0)
+#define RESET_LINKER
 import GHC (getSession, setSession)
-import HscTypes (HscEnv (..))
+import HscTypes (HscEnv(..))
 import Linker
+#endif
+
+#if !MIN_VERSION_Cabal(3,8,0)
+type SymbolicPath from to = FilePath
+
+getSymbolicPath :: SymbolicPath from to -> FilePath
+getSymbolicPath = id
+
+unsafeMakeSymbolicPath :: FilePath -> SymbolicPath from to
+unsafeMakeSymbolicPath = id
 #endif
 
 lookupX :: String -> BuildInfo -> Maybe String
@@ -122,7 +138,7 @@ buildVerilator' startAction lbi flags compName buildInfo mod entity = do
       & extraLibs %~ ("stdc++":)
       & options %~ fixupOptions (compileFlags++)
       & ldOptions %~ (ldFlags++)
-      & hsSourceDirs %~ (incDir:)
+      & hsSourceDirs %~ (unsafeMakeSymbolicPath incDir:)
       & otherModules %~ (fromString "Clash.Clashilator.FFI":)
   where
     verbosity = fromFlagOrDefault normal (buildVerbosity flags)
@@ -130,7 +146,7 @@ buildVerilator' startAction lbi flags compName buildInfo mod entity = do
     clk = lookup "x-clashilator-clock" $ view customFieldsBI buildInfo
 
     -- TODO: Maybe we could add extra source dirs from "x-clashilator-source-dirs"?
-    srcDirs = view hsSourceDirs buildInfo
+    srcDirs = getSymbolicPath <$> view hsSourceDirs buildInfo
     outDir = case compName of
         Nothing -> buildDir lbi
         Just name -> buildDir lbi </> unUnqualComponentName name
@@ -139,7 +155,7 @@ buildVerilator' startAction lbi flags compName buildInfo mod entity = do
 
 clashilate :: LocalBuildInfo -> BuildFlags -> Component -> IO BuildInfo
 clashilate lbi flags c = do
-#if MIN_VERSION_ghc(8,10,0)
+#ifdef RESET_LINKER
     linker <- uninitializedLinker
     let startAction = do
             env <- getSession
