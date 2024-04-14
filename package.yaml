@@ -16,12 +16,12 @@ dependencies:
   - lens
 
   - ghc
-  - clash-lib ^>= 1.4.2 || ^>= 1.6.1
-  - clash-ghc ^>= 1.4.2 || ^>= 1.6.1
+  - clash-lib >= 1.4.2 && < 2.0
+  - clash-ghc >= 1.4.2 && < 2.0
   - text
   - filepath
   - stache ^>= 2.3
-  - aeson ^>= 1.5 || ^>= 2.0
+  - aeson >= 1.5 && < 3.0
   - unordered-containers
   - optparse-applicative
   - containers
