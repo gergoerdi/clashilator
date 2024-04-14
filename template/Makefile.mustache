@@ -3,8 +3,7 @@ VERILOG_SRCS	= {{#srcs}}{{verilogPath}} {{/srcs}}
 HDL_DIR         = {{hdlDir}}
 OUT_DIR		= {{outputDir}}/obj
 VERILATOR_HDRS	= $(OUT_DIR)/VSim.h
-VERILATOR_LIB	= $(OUT_DIR)/VSim__ALL.a
-VERILATOR_OBJS  = $(OUT_DIR)/verilated.o
+VERILATOR_LIB	= $(OUT_DIR)/VSim__ALL.a $(OUT_DIR)/libverilated.a
 
 SRC_DIR         = {{outputDir}}/src
 SRCS	        = $(foreach file, Impl.cpp Impl.h Interface.h, $(SRC_DIR)/$(file))
@@ -38,7 +37,7 @@ $(VERILATOR_LIB) $(VERILATOR_HDRS): $(OUT_DIR)/VSim.mk
 $(OUT_DIR)/VerilatorFFI.o: $(SRCS) $(VERILATOR_HDRS)
 	$(COMPILE.cc) $(OUTPUT_OPTION) $<
 
-$(OUT_DIR)/libVerilatorFFI.a: $(OUT_DIR)/VerilatorFFI.o $(VERILATOR_LIB) $(VERILATOR_OBJS)
+$(OUT_DIR)/libVerilatorFFI.a: $(OUT_DIR)/VerilatorFFI.o $(VERILATOR_LIB)
 	rm -f $@
 	mkdir -p $(OUT_DIR)
 	ar rcsT $@ $^
