@@ -121,7 +121,6 @@ buildVerilator' startAction lbi flags compName buildInfo mod entity = do
 
         compileFlags =
             [ "-fPIC"
-            , "-pgml c++"
             ]
 
         ldFlags =
