@@ -5,29 +5,43 @@
 
 packages:
 - completed:
-    hackage: clash-prelude-1.4.6@sha256:fdc6a41cd9acd10f1fe5fc585d101590003a78453ed2f9a503c0e415d6165e73,15932
+    hackage: clash-prelude-1.8.1@sha256:c0db58c2de0eae8d4921585062d28334b30a723ee7509e2bffef104b5359b44b,18134
     pantry-tree:
-      size: 11699
-      sha256: 5a9c1c86f4b66547fda76cd88018c9be4c51472aa14116376daac74badf027e8
+      sha256: ea90a0581033a71dd2ca5fec1403a6abb64206e645b3a22d2d68e150e3360bf6
+      size: 13511
   original:
-    hackage: clash-prelude-1.4.6
+    hackage: clash-prelude-1.8.1
 - completed:
-    hackage: clash-lib-1.4.6@sha256:30898bf9c4b0c70cecd1f389f2549acea910a756b65c0b2740533592d00fafc9,12829
+    hackage: clash-lib-1.8.1@sha256:311f9a7ae29b23de94a7ba3e9aaccac94755d817ff6e7927a2fff5a8bb3c3e0a,16148
     pantry-tree:
-      size: 19522
-      sha256: 9cd3c4124e2f9f150dcd620d794905be754db51e60e2b54bb952d3e2676df501
+      sha256: 062c056e52db0da3261867165a88b2e9783688dfc82c9c1521837b92cd867421
+      size: 23320
   original:
-    hackage: clash-lib-1.4.6
+    hackage: clash-lib-1.8.1
 - completed:
-    hackage: clash-ghc-1.4.6@sha256:9bd5b89765079f050df2fdf17fe91cb176f0a18276a8a3d7220ac889d2acfa42,9011
+    hackage: clash-ghc-1.8.1@sha256:e0c9dc8be0d1fda31ee8c3007d7dce3fb3467e5eabe586fb570bdd2fafb3f3a6,10022
     pantry-tree:
-      size: 4073
-      sha256: fe7f13de0d2fcec3fa987cfcda8336de2ef8aca699a74ff47e1f16e7edc01dff
+      sha256: 275ec37ff07f9762cc45e6bfa9be9940e74c6b994b87e1eafdac786e40af0da0
+      size: 5656
   original:
-    hackage: clash-ghc-1.4.6
+    hackage: clash-ghc-1.8.1
+- completed:
+    hackage: prettyprinter-interp-0.2.0.0@sha256:69c339a95b265dab9b3478ca19ec96952b6b472bd0ff6e2127112a9562362c1d,2086
+    pantry-tree:
+      sha256: 72ec39fe4a40e437e7c0d3efba1f97c4e4e860a7b5503f31d185cef389c9c6e1
+      size: 300
+  original:
+    hackage: prettyprinter-interp-0.2.0.0
+- completed:
+    hackage: concurrent-supply-0.1.8@sha256:80b658533141660818d0781b8c8fb9a8cf69b987fcfbab782dc788bfc7df4846,1627
+    pantry-tree:
+      sha256: 8ede0db0bb492f20b2ef34e822ac3e957b31693cd6b7ffd502bec11abcba1955
+      size: 400
+  original:
+    hackage: concurrent-supply-0.1.8
 snapshots:
 - completed:
-    size: 586069
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/18/14.yaml
-    sha256: 87842ecbaa8ca9cee59a7e6be52369dbed82ed075cb4e0d152614a627e8fd488
-  original: lts-18.14
+    sha256: 7d4b649cf368f9076d8aa049aa44efe58950971d105892734e9957b2a26a2186
+    size: 640060
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/21/21.yaml
+  original: lts-21.21

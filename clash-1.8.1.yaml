@@ -1,0 +1,14 @@
+name: clash-1.8.1
+resolver: lts-21.21
+
+packages:
+  - clash-prelude-1.8.1
+  - clash-lib-1.8.1
+  - clash-ghc-1.8.1
+  
+  - prettyprinter-interp-0.2.0.0
+  - concurrent-supply-0.1.8
+
+flags:
+    clash-prelude:
+      multiple-hidden: false
