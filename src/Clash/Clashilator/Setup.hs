@@ -22,7 +22,7 @@ import Distribution.Verbosity
 import Distribution.ModuleName
 import Distribution.Types.UnqualComponentName
 #if MIN_VERSION_Cabal(3,8,0)
-import Distribution.Utils.Path
+import Distribution.Utils.Path hiding ((</>), (<.>))
 #endif
 
 import Distribution.Types.Lens
@@ -64,7 +64,7 @@ clashToVerilog :: Ghc () -> LocalBuildInfo -> BuildFlags -> [FilePath] -> BuildI
 clashToVerilog startAction lbi flags srcDirs buildInfo mod entity outDir = do
     pkgdbs <- packageDBs lbi flags
     let dbpaths = nub . sort $ [ path | SpecificPackageDB path <- pkgdbs ]
-        dbflags = concat [ ["-package-db", path] | path <- dbpaths ]
+        dbflags = concat [ ["-package-db", getSymbolicPath path] | path <- dbpaths ]
         iflags = [ "-i" <> dir | dir <- srcDirs ]
         clashflags = maybe [] words $ lookupX "clash-flags" buildInfo
 
@@ -132,8 +132,8 @@ buildVerilator' startAction lbi flags compName buildInfo mod entity = do
             ]
 
     return $ buildInfo
-      & includeDirs %~ (incDir:)
-      & extraLibDirs %~ (libDir:)
+      & includeDirs %~ (makeSymbolicPath incDir:)
+      & extraLibDirs %~ (makeSymbolicPath  libDir:)
       & extraLibs %~ ("stdc++":)
       & options %~ fixupOptions (compileFlags++)
       & ldOptions %~ (ldFlags++)
@@ -146,9 +146,10 @@ buildVerilator' startAction lbi flags compName buildInfo mod entity = do
 
     -- TODO: Maybe we could add extra source dirs from "x-clashilator-source-dirs"?
     srcDirs = getSymbolicPath <$> view hsSourceDirs buildInfo
+    buildPath = getSymbolicPath $ buildDir lbi
     outDir = case compName of
-        Nothing -> buildDir lbi
-        Just name -> buildDir lbi </> unUnqualComponentName name
+        Nothing -> buildPath
+        Just name -> buildPath </> unUnqualComponentName name
     verilatorDir = outDir </> "_clashilator" </> "verilator"
     synDir = outDir </> "_clashilator" </> "clash-syn"
 

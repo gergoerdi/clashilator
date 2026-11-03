@@ -12,10 +12,12 @@ import Distribution.Simple.BuildTarget
 import Distribution.Simple.Setup
 import Distribution.Simple.Register
 import Distribution.Types.ComponentRequestedSpec
+import Distribution.Utils.Path (getSymbolicPath)
 
 import Distribution.Types.Lens
 import Control.Lens hiding ((<.>))
 import Control.Monad (unless, when)
+import System.Directory (doesDirectoryExist)
 
 type BuildHook = PackageDescription -> LocalBuildInfo -> UserHooks -> BuildFlags -> IO ()
 type ComponentHook = LocalBuildInfo -> BuildFlags -> Component -> IO BuildInfo
@@ -24,21 +26,24 @@ withComponentHook :: ComponentHook -> BuildHook -> BuildHook
 withComponentHook componentHook nextBuildHook pkg lbi userHooks flags = do
     let reqSpec = componentEnabledSpec lbi
     withAllComponentsInBuildOrder pkg lbi $ \c clbi -> do
-        flags <- return $ restrictBuildFlags pkg c flags
-        when (componentEnabled reqSpec c && not (null $ buildArgs flags)) $ do
-            bi <- componentHook lbi flags c
-            pkg <- return $ updateBuildInfo c bi pkg
-            nextBuildHook pkg lbi userHooks flags
+        let restrictedFlags = restrictBuildFlags pkg c flags
+            hasTargets = not (null (setupTargets (buildCommonFlags restrictedFlags)))
+
+        when (componentEnabled reqSpec c && hasTargets) $ do
+            bi <- componentHook lbi restrictedFlags c
+            let pkg' = updateBuildInfo c bi pkg
+            nextBuildHook pkg' lbi userHooks restrictedFlags
 
 packageDBs :: LocalBuildInfo -> BuildFlags -> IO [PackageDB]
 packageDBs lbi flags = do
     pkgdb0 <- do
         let dbPath = internalPackageDBPath lbi distPref
-        existsAlready <- doesPackageDBExist dbPath
+        existsAlready <- doesDirectoryExist (getSymbolicPath dbPath)
         unless existsAlready $ do
-            createPackageDB verbosity (compiler lbi) (withPrograms lbi) False dbPath
+            createPackageDB verbosity (compiler lbi) (withPrograms lbi) False (getSymbolicPath dbPath)
         return $ SpecificPackageDB dbPath
-    pkgdbs <- absolutePackageDBPaths $ withPackageDB lbi
+
+    pkgdbs <- absolutePackageDBPaths Nothing (withPackageDB lbi)
 
     return $ pkgdb0 : pkgdbs
   where
@@ -73,7 +78,7 @@ updateBuildInfo c bi pkg = foldr ($) pkg $
 
 restrictBuildFlags :: PackageDescription -> Component -> BuildFlags -> BuildFlags
 restrictBuildFlags pkg c buildFlags = buildFlags
-    { buildArgs = selectedArgs
+    { buildCommonFlags = (buildCommonFlags buildFlags) { setupTargets = selectedArgs }
     }
   where
     selectedArgs = [showBuildTarget (packageId pkg) $ BuildTargetComponent $ componentName c]
