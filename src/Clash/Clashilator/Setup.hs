@@ -107,7 +107,7 @@ buildVerilator' startAction lbi flags compName buildInfo mod entity = do
 
     -- TODO: dependency tracking
     (verilogDir, manifest) <- clashToVerilog startAction lbi flags srcDirs buildInfo mod entity synDir
-    Clashilator.generateFiles (Just cflags) verilogDir verilatorDir (fromString <$> clk) manifest
+    Clashilator.generateFiles (Just cflags) verilogDir verilatorDir (fromString <$> clk) extra manifest
 
     -- TODO: get `make` location from configuration
     _ <- getProgramInvocationOutput verbosity $
@@ -143,6 +143,7 @@ buildVerilator' startAction lbi flags compName buildInfo mod entity = do
     verbosity = fromFlagOrDefault normal (buildVerbosity flags)
 
     clk = lookup "x-clashilator-clock" $ view customFieldsBI buildInfo
+    extra = lookup "x-clashilator-extra" $ view customFieldsBI buildInfo
 
     -- TODO: Maybe we could add extra source dirs from "x-clashilator-source-dirs"?
     srcDirs = getSymbolicPath <$> view hsSourceDirs buildInfo

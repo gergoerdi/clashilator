@@ -81,8 +81,8 @@ portInfo tag (Port name width) = object
   where
     ty = ffiType width
 
-manifestInfo :: Maybe String -> FilePath -> FilePath -> Maybe Text -> Manifest -> Value
-manifestInfo cflags srcDir outputDir clkName Manifest{..} = object
+manifestInfo :: Maybe String -> FilePath -> FilePath -> Maybe Text -> Maybe FilePath -> Manifest -> Value
+manifestInfo cflags srcDir outputDir clkName extraPath Manifest{..} = object
     [ "inPorts"      .= (markEnds $ map (portInfo "i") ins)
     , "outPorts"     .= (markEnds $ map (portInfo "o") outs)
     , "clock"        .= fmap (\clock -> object ["cName" .= cName clock]) clock
@@ -90,6 +90,7 @@ manifestInfo cflags srcDir outputDir clkName Manifest{..} = object
     , "srcs"         .= [ object ["verilogPath" .= TL.pack (srcDir </> T.unpack component <.> "v")]
                         | component <- componentNames
                         ]
+    , "extra"        .= extraPath
     , "verilator"    .= fmap (\cflags -> object [ "cflags" .= TL.strip (TL.pack cflags) ]) cflags
     , "outputDir"    .= outputDir
     ]
@@ -116,8 +117,8 @@ templates =
     , ("src/Clash/Clashilator/FFI.hsc", $(TH.compileMustacheFile "template/FFI.hsc.mustache"))
     ]
 
-generateFiles :: Maybe String -> FilePath -> FilePath -> Maybe Text -> Manifest -> IO ()
-generateFiles cflags inputDir outputDir clkName manifest = do
-    let vals = manifestInfo cflags inputDir outputDir clkName manifest
+generateFiles :: Maybe String -> FilePath -> FilePath -> Maybe Text -> Maybe FilePath -> Manifest -> IO ()
+generateFiles cflags inputDir outputDir clkName extraPath manifest = do
+    let vals = manifestInfo cflags inputDir outputDir clkName extraPath manifest
     forM_ templates $ \(fname, template) -> do
         writeFileChanged (outputDir </> fname) $ TL.unpack $ renderMustache template vals
