@@ -10,6 +10,7 @@ data Options = Options
     { manifestPath :: FilePath
     , outputDir :: FilePath
     , clkName :: Maybe String
+    , extraPath :: Maybe FilePath
     }
 
 options :: Parser Options
@@ -32,6 +33,11 @@ options = do
         , metavar "NAME"
         , help "Clock signal name"
         ]
+    extraPath <- optional $ strOption $ mconcat
+        [ long "extra"
+        , metavar "FP"
+        , help "Extra verilog file"
+        ]
     pure Options{..}
 
 optionsInfo = info (options <**> helper) $ mconcat
@@ -47,4 +53,4 @@ main = do
     Just manifest <- readManifest manifestPath
     let inputDir = takeDirectory manifestPath
 
-    generateFiles Nothing inputDir outputDir (fromString <$> clkName) manifest
+    generateFiles Nothing inputDir outputDir (fromString <$> clkName) extraPath manifest
